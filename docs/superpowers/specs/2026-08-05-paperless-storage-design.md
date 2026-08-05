@@ -309,7 +309,7 @@ Kit-first-Regel Punkt 1 erfüllt — REGISTRY und `obsidian-kit/README.md` gepr�
 
 | Baustein | Quelle | Nutzung |
 |---|---|---|
-| `endpoint_config` (`EndpointConfig{url, apiKey}`, `authHeaders()`) | Kit @0.23.0 | Server-URL + Token |
+| ~~`endpoint_config`~~ | Kit @0.23.0 | **Verworfen (2026-08-05, geprüft):** `authHeaders()` erzeugt `Bearer <key>`, paperless verlangt `Token <key>`. Zudem modelliert das Modul eine priorisierte Endpunkt-**Liste** mit Modellwahl für LLM-Failover — paperless hat genau einen Server. Eigener `ApiConfig`-Typ in `core/paperless-api.ts` |
 | i18n-Engine (`defineStrings`, `t`, `pickLang`) | Kit | PROF-OBS-07 |
 | `collapsibleSection`, `confirmAction` | Kit | Einstellungen, „Cache leeren" |
 | `createObsidianMock` | Kit `testing` | Unit-Tests |
