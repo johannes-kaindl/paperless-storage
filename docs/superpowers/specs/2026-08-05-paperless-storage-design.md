@@ -42,7 +42,10 @@ Unterschieds: API-Token statt öffentlicher URL.**
   Regeln und Volltextsuche bleiben dort. Das Plugin ist eine Leseschicht.
 - **Kein Upload aus Obsidian** in v1. Zuführung läuft über den Consume-Ordner
   oder die paperless-Oberfläche.
-- **Keine Migration sensibler Projektakten** in v1 (siehe §9).
+- **Kein Migrationswerkzeug.** Das Plugin ist ein Store-Plugin für beliebige
+  Nutzer. Der Umzug der 70 Bestands-PDFs ist ein **persönlicher Rollout** und
+  steht deshalb in §9 getrennt vom Produkt — kein Pallas-Pfad, keine
+  Vault-Struktur und keine Ordnernamen aus diesem Vault gehören in den Code.
 - **Keine LLM-Funktionen.** paperless bringt einen eigenen LLM-Index mit
   (`llm_backend`: `openai-like`/`ollama`); das ist ein separates Thema.
 
@@ -113,12 +116,29 @@ bündeln kein pdf.js (~1 MB), sondern nutzen, was Obsidian bereits kann.
 
 **Constraint — der Cache darf kein Dot-Ordner sein.** Obsidian ignoriert
 Verzeichnisse mit führendem Punkt vollständig; darin liegende Dateien sind
-keine `TFile` und für den nativen Viewer unsichtbar. Der Cache liegt deshalb
-sichtbar, vorgeschlagen `90_Meta/paperless-cache/`, und wird:
+keine `TFile` und für den nativen Viewer unsichtbar.
 
-- per `.gitignore` aus dem Vault-Git gehalten,
-- in Obsidians „Ausgeschlossene Dateien" aus Suche und Graph genommen,
-- über einen Befehl vollständig leerbar.
+Der Cache liegt deshalb sichtbar, standardmäßig **`_paperless-storage/` im
+Vault-Root** — Muster aus `vim-dojo` (`missionFolder: '_neurovim/'`): Der
+Unterstrich sortiert ihn im Dateibaum nach oben und markiert ihn als
+Plugin-Bereich. Der Pfad ist in den Einstellungen frei wählbar
+(`FolderSuggest` aus dem Kit @0.18.0); eine leere Eingabe fällt auf den Default
+zurück, statt Dateien im Vault-Root zu materialisieren.
+
+Dazu:
+
+- **Setting „Cache-Ordner ausblenden"** (Default: an) — blendet den Ordner im
+  Dateibaum aus. Umsetzung über ein plugin-eigenes `<style>`-Element mit einer
+  Regel auf `[data-path]`, das bei Pfadänderung neu geschrieben und im
+  `onunload` entfernt wird (PROF-OBS-13: Cleanup-Disziplin, kein
+  `innerHTML`-Write). **Der Pfad muss CSS-escaped werden** — ein Ordnername mit
+  Anführungszeichen bräche sonst den Attributselektor auf.
+  Obsidians „Ausgeschlossene Dateien" wird **nicht** angefasst: das ist fremde
+  Vault-Konfiguration, ein Store-Plugin schreibt dort nicht hinein.
+- Der Ordner ist jederzeit löschbar, ohne dass etwas verloren geht — nur
+  Wiederherstellbares liegt darin. Das gehört so in die Setting-Beschreibung.
+- Empfehlung an Git-Nutzer im README: Ordner in `.gitignore` aufnehmen.
+  Das Plugin schreibt **keine** `.gitignore` selbst.
 
 **Ehrlich benannt:** Das ist ein Lazy-Cache, kein Verzicht auf Duplikate.
 Angesehene Dokumente liegen doppelt. Der Unterschied zu einem Vollspiegel: nur
@@ -168,6 +188,7 @@ src/
     paperless-api.ts        Routen, Request-Bau, Antwort-Parsing
     errors.ts               Status + Rohbody, vier Fehlerquellen
     cache-policy.ts         Cache-Pfad, Checksum-Vergleich, Invalidierung
+    settings.ts             Typen, DEFAULT_SETTINGS, mergeSettings
     i18n.ts                 EN kanonisch + DE (PROF-OBS-07)
   obsidian/
     http.ts                 requestUrl-Transport (Muster: image-to-markdown)
@@ -175,6 +196,7 @@ src/
     file-view.ts            FileView für Pane-Ansicht
     render-core.ts          gemeinsamer Kern beider Adapter
     cache-store.ts          Vault-I/O für den Cache
+    folder-visibility.ts    <style>-Regel zum Ausblenden, mit Cleanup
     insert-modal.ts         Suchmodal zum Einfügen
     settings-tab.ts         Einstellungen
   main.ts
@@ -189,8 +211,21 @@ src/
   paperless geändert wurde — über `app.fileManager.renameFile`, damit Obsidian
   alle Links selbst nachzieht.
 - **Befehl „Cache leeren".**
-- **Einstellungen:** Server-URL, API-Token, Cache-Ordner, Dateiversion
-  (Archiv-PDF oder Original), Embed-Standardhöhe.
+- **Einstellungen:**
+
+  | Setting | Default |
+  |---|---|
+  | Server-URL | leer — ohne sie meldet das Plugin „nicht eingerichtet" statt eines Netzfehlers |
+  | API-Token | leer |
+  | Cache-Ordner (`FolderSuggest`) | `_paperless-storage/` |
+  | Cache-Ordner ausblenden | an |
+  | Dateiversion | Archiv-PDF (Alternative: Original) |
+  | Embed-Standardhöhe | Obsidian-Default |
+
+**Erstkontakt zählt.** Ein Fremdnutzer installiert das Plugin ohne Server-URL
+und Token. Alle Einstiegspunkte — Embed, Modal, Befehl — müssen in diesem
+Zustand denselben klaren Hinweis „In den Einstellungen einrichten" zeigen,
+nicht einen Netz- oder Auth-Fehler.
 
 Nach UI-STANDARD §1 gibt es **genau einen** `registerView`-Type. Modal und
 Einstellungen sind keine Views und fallen nicht darunter.
@@ -231,16 +266,23 @@ wiederverwendbar.
 
 ## 6 Sicherheit
 
-- Der API-Token liegt in `data.json` des Plugins, also unter
-  `.obsidian/plugins/paperless-storage/`. Der Pallas-Vault committet
-  `.obsidian/` bereits nicht mit (`git add -A -- ':(exclude).obsidian'` im
-  `clean-shutdown`), der Token liegt damit nicht im Git — **vor** der ersten
-  Konfiguration einmal bestätigen statt annehmen.
-- Ein Token hat die Rechte seines Benutzers. Für v1 akzeptiert; ein eigener
-  Lesebenutzer in paperless wäre die sauberere Form und ist ein offener Punkt.
+- Der API-Token liegt in `data.json` unter
+  `.obsidian/plugins/paperless-storage/`. Wer seinen Vault versioniert, muss
+  wissen, dass der Token dort im Klartext steht — **gehört ins README**, weil
+  Vaults unterschiedlich mit `.obsidian/` umgehen.
+  *(Im Pallas-Vault ist `.obsidian/` vom Commit ausgeschlossen —
+  `git add -A -- ':(exclude).obsidian'` im `clean-shutdown` —, der Token liegt
+  dort also nicht im Git. Vor der ersten Konfiguration einmal bestätigen statt
+  annehmen.)*
+- Ein Token hat die Rechte seines Benutzers. Ein eigener Lesebenutzer in
+  paperless ist die sauberere Form; als Empfehlung ins README, nicht erzwungen.
 - Es entstehen **keine** Share-Links. Kein Dokument wird öffentlich erreichbar.
-- Der Cache enthält Klartext-PDFs im Vault. Wer das nicht will, nutzt für
-  sensible Akten den Pane-Weg ohne Cache — als Einstellung vorzusehen.
+  Das ist der Kernunterschied zu den bestehenden Plugins.
+- Der Cache enthält Klartext-PDFs im Vault. Für sensible Dokumente ist der
+  Pane-Weg ohne Cache vorzusehen — als Einstellung, nicht als Vorgabe.
+- Der Token wird **nur** an die konfigurierte Server-URL gesendet, an keine
+  dritte Adresse. Keine Telemetrie, keine automatischen Verbindungen — der
+  Store-Review prüft genau das.
 
 ## 7 Test
 
@@ -250,10 +292,13 @@ wiederverwendbar.
   Pflicht, bevor ein Pfad als abgesichert gilt, und das Werkzeug gehört
   **getrackt ins Repo** — nicht in einen Scratchpad. Vorgesehen:
   `scripts/paperless-lab.ts`, das denselben Produktionscode aus `src/core/`
-  gegen `https://paperless.jkaindl.de` fährt (Metadaten, Preview-Bytes,
-  401-Verhalten mit falschem Token, 404 mit unbekannter ID), angebunden an
-  `typecheck`. Ein gemockter paperless-Server würde genau die Eigenschaft
-  verbergen, für die es die Gegenstelle gibt.
+  gegen eine echte Instanz fährt (Metadaten, Preview-Bytes, 401-Verhalten mit
+  falschem Token, 404 mit unbekannter ID), angebunden an `typecheck`. Ein
+  gemockter paperless-Server würde genau die Eigenschaft verbergen, für die es
+  die Gegenstelle gibt.
+  **Instanz-URL und Token kommen aus Umgebungsvariablen** (`PAPERLESS_URL`,
+  `PAPERLESS_TOKEN`), nicht hartkodiert — sonst wandert eine private Adresse in
+  ein öffentliches Repo und das Skript ist für Mitlesende wertlos.
 - **GUI-Smoke** über den Skill `gui-smoke-setup` (CDP gegen ein laufendes
   Obsidian), sobald das Embed steht. Ohne `Page.bringToFront` bleibt die View
   leer und man debuggt ein Phantom.
@@ -277,7 +322,11 @@ Kit-first-Regel Punkt 1 erfüllt — REGISTRY und `obsidian-kit/README.md` gepr�
 
 Nach dem Bau: Registry-Eintrag für den PDF-Anzeige-Befund (Kit-first Punkt 2).
 
-## 9 Migration der 70 PDFs
+## 9 Persönlicher Rollout — **kein Produktbestandteil**
+
+> Dieser Abschnitt beschreibt den Umzug der Bestands-PDFs im Pallas-Vault.
+> Er ist Betriebsvorgang, nicht Feature: nichts davon wird ausgeliefert, und
+> keine der hier genannten Pfade oder Ordnernamen gehört in den Code.
 
 **Stufe 1 — allgemeine Ablage (31 PDFs in `50_Ressourcen/30_Storage`).**
 Nach paperless hochladen, Stubs erzeugen, `![[x.pdf]]` durch
@@ -298,13 +347,44 @@ hängen die Notizen an dessen Backup. Der Backup-Timer nach dem Muster
 `forgejo-backup`/`n8n-backup` mit Off-Site-Ziel ist damit **Voraussetzung der
 Migration**, nicht ihr Nachklapp. Vor Stufe 1 zu erledigen.
 
-## 10 Offene Punkte
+## 10 Veröffentlichung
 
-- Ergebnis des Spikes aus §4 — alles Weitere hängt daran.
-- Cache-Ordner: `90_Meta/paperless-cache/` ist ein Vorschlag, noch nicht mit
-  der Vault-Konvention abgeglichen.
-- Eigener Lesebenutzer in paperless statt Token des Admin-Kontos.
-- Verhalten auf Obsidian Mobile: ungeprüft. Der Pallas-Vault liegt unter
-  `/Users/Shared/` und wird mutmaßlich nur am Mac genutzt — zu bestätigen.
-- Die rund 40 reinen `[[x.pdf]]`-Links (ohne `!`) sind in der Migration noch
-  nicht betrachtet.
+Das Plugin geht in den Community-Store, muss also für fremde Vaults ohne
+Vorwissen funktionieren.
+
+- **Release-Infra** über den Dach-Skill `plugin-release-setup` +
+  `tools/release-template/` (PROF-OBS-09): Ein-Befehl-Release, drei Dateien
+  synchron (`package.json`/`manifest.json`/`versions.json`), Forgejo als
+  `origin`, GitHub als CI-Trigger.
+- **Der Tag ist nicht das Ende.** Seit *Obsidian Community* (Mai 2026) läuft der
+  Store-Review **nicht** von selbst an — er ist im Developer Dashboard als
+  Rescan anzustoßen (gemessen 2026-08-05 an vault-rag 0.19.0). Fällt eine
+  Version durch, verschwindet **das Plugin** binnen 24 h aus der Suche.
+- **`npm run lint` vor jedem Tag** — der Scanner ist `eslint-plugin-obsidianmd`
+  und lokal reproduzierbar. Per-file-Overrides machen diese Vorschau blind.
+- **Kein `eval`/`new Function`** im Bundle (PROF-OBS-12), sonst flaggt das
+  Portal „Dynamic Code Execution".
+- **Die inoffizielle `embedRegistry`-API ist store-verträglich**, solange sie
+  per Feature-Detection abgesichert ist — `3d-codeblocks` ist damit im Store.
+  Fehlt sie, entfallen nur die Embeds.
+- **README** trägt: Einrichtung (URL + Token erzeugen), die Token-Ablage in
+  `data.json`, die Empfehlung eines eigenen Lesebenutzers, den
+  `.gitignore`-Hinweis für den Cache-Ordner, und die ausdrückliche Abgrenzung
+  „liest nur, lädt nichts hoch".
+- **Lizenz:** MIT, wie die übrigen Plugins des Dachs.
+
+## 11 Offene Punkte
+
+- **Ergebnis des Spikes aus §4** — alles Weitere hängt daran.
+- **`isDesktopOnly` im Manifest: noch nicht entscheidbar.** Ob `embedRegistry`
+  und der native PDF-Viewer auf Obsidian Mobile tragen, ist ungeprüft. Der
+  Spike sollte es mitbeantworten; bis dahin ist der Manifest-Wert offen. Ein
+  Store-Plugin, das auf Mobile still nichts tut, ist ein Review-Risiko —
+  lieber ehrlich `isDesktopOnly: true` als eine leere Fläche.
+- **Verhalten mehrerer Vaults gegen dieselbe Instanz** — Cache und Stubs sind
+  vault-lokal, das sollte tragen, ist aber ungeprüft.
+- **Umgang mit gelöschten Dokumenten:** Der Stub bleibt liegen und zeigt einen
+  404-Platzhalter (§5). Ob es zusätzlich einen Aufräum-Befehl braucht
+  („verwaiste Stubs finden"), entscheidet die Praxis.
+- Die rund 40 reinen `[[x.pdf]]`-Links (ohne `!`) im Pallas-Vault sind im
+  Rollout (§9) noch nicht betrachtet.
