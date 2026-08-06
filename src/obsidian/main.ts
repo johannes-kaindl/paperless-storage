@@ -6,6 +6,7 @@ import { CacheStore } from "./cache-store";
 import { registerPaperlessEmbed } from "./embed";
 import { PaperlessSettingTab } from "./settings-tab";
 import { applyCacheFolderVisibility, removeCacheFolderVisibility } from "./hide-folder";
+import { runTitleSync } from "./title-sync-runner";
 
 export default class PaperlessStoragePlugin extends Plugin {
   settings: PaperlessSettings = DEFAULT_SETTINGS;
@@ -42,6 +43,14 @@ export default class PaperlessStoragePlugin extends Plugin {
       callback: async () => {
         const n = await cache.clear();
         new Notice(`Paperless storage: ${n} cached file(s) removed.`);
+      },
+    });
+
+    this.addCommand({
+      id: "sync-titles",
+      name: "Synchronize document titles",
+      callback: () => {
+        void runTitleSync(deps);
       },
     });
   }
