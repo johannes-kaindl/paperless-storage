@@ -277,3 +277,87 @@ kein PDF.
   „getrennter" Test liefert scheinbar Erfolg (der Request geht durch), ohne die Notiz
   offline zu testen. Ein wirklicher Offline-Zweig lässt sich stattdessen über eine
   absichtlich unauflösbare Server-URL erzwingen.
+
+## Abnahme Phase 2 (Aufgabe 21, Schritt 3)
+
+**Gemessen:** 2026-08-06 · gegen `https://paperless.jkaindl.de` (paperless-ngx 3.0.5),
+Testvault `00_ProtoVault`, Obsidian 1.13.5. Über CDP automatisiert (dependency-freier
+Wegwerf-Treiber im Scratchpad, gleiches Muster wie Phase 1 und
+`3d-codeblocks/scripts/gui-smoke.ts`), Einstellungs-Checks direkt am Plugin-Objekt
+(`plugin.settings.x = …; plugin.applyCacheFolderVisibility()`/`saveSettings()`) statt
+über das separate Settings-Fenster geklickt — funktional identisch zum
+Setting-`onChange`, das denselben Assignment+Save-Aufruf macht, ohne eine zweite
+CDP-Verbindung zum Settings-Fenster zu brauchen (seit Obsidian 1.13 ein eigenes
+Fenster, siehe Fallstricke oben).
+
+| # | Prüfpunkt (Plan Aufgabe 21, Schritt 3) | Befund |
+|---|---|---|
+| 1 | „Insert document" → Suche → Auswahl → `![[…]]` an Cursorposition | **OK** — Suchtreffer "notes-to-media" erscheint, Embed-Link nach Klick im Editor-Inhalt |
+| — | Neuer Stub bei Erstanlage | **OK** — Dateizahl vorher=0, nachher=1 |
+| 2 | Gleicher Befehl nochmal für dasselbe Dokument → vorhandener Stub wird wiederverwendet | **OK** — kein zweiter Stub, Dateizahl bleibt bei 1 |
+| 3 | `.paperless`-Datei im Explorer öffnen → ganzes Pane, PDF sichtbar | **OK** — `viewType: "paperless-storage-file-view"`, Inhalt vorhanden |
+| 4 | Dateiwechsel im selben Pane → neues PDF, kein Kind-Überhang | **OK** — Kind-Elemente vor/nach Wechsel identisch (2), kein Anwachsen |
+| 5 | Cache-Ordner-Pfad ändern + „Hide cache folder" an → Ordner verschwindet | **OK** — injiziertes `<style>` mit `_paperless-storage`-Selector vorhanden |
+| 6 | „Hide cache folder" aus → Ordner erscheint sofort wieder | **OK** — Selector sofort wieder entfernt, kein Neustart nötig |
+| 7 | Dateiversion „Original" → `-original.pdf` im Cache | **OK** — `_paperless-storage/1-original.pdf` UND `1.pdf` (Archiv bleibt, Original kommt dazu) |
+| 8 | Embed-Höhe setzen (601px) → Embed-Container hat diese Höhe | **OK (nach Fix, siehe unten)** — 601px stabil über 3,5s / 14 Stichproben |
+| 9 | Titel in paperless ändern (echte PATCH-Anfrage, reversibel) → „Synchronize document titles" → Stub umbenannt, Links bleiben gültig | **OK (nach Erkenntnis zum Bestätigungsdialog, siehe unten)** — Stub umbenannt, `getFirstLinkpathDest` löst den neuen Dateinamen auf |
+| 10 | Konsolenfehler während des gesamten Laufs | **OK** — 0 (Fehler-/Rejection-Zähler + `console.error`-Zähler über die volle Laufzeit) |
+
+Alle 10 Prüfpunkte (14 Einzel-Assertions im Treiber) grün nach den beiden unten
+beschriebenen Korrekturen.
+
+### Befund 1 — Embed-Höhe: Obsidians PDF-Viewer überschreibt sie in zwei Schüben
+
+`render-core.ts` setzte `containerEl.style.height` einmalig vor dem Aufruf des
+PDF-Creators (Aufgabe 17). Live gemessen: Obsidians nativer Viewer setzt danach seine
+eigene, inhaltsabhängige Höhe auf **denselben** Container — nicht einmalig, sondern in
+zwei Schüben (grobe Layout-Passe nach ~300–600 ms, dann nochmal nach vollständiger
+Seitenberechnung ~1 s später). Ein erster Fix-Versuch (`MutationObserver`, der sich nach
+der ersten Korrektur selbst abmeldet) fing nur den ersten Schub ab:
+
+```
+601px @250-750ms → 1025.16px @1000ms, bleibt dort (zweiter Schub lief durch)
+```
+
+**Fix:** Der Observer bleibt für die Lebensdauer des Embeds aktiv (Abmeldung erst beim
+Unload über `parent.register`) und korrigiert jede Abweichung, nicht nur die erste.
+`!important` — die naheliegende CSS-Alternative — ist durch PROF-OBS-13 verboten. Die
+Selbstkorrektur triggert zwar selbst wieder eine Mutation, die aber beim zweiten
+Callback-Durchlauf bereits `targetHeight` sieht und terminiert — keine Endlosschleife
+(gegengeprüft in der Fix-Review).
+
+**Nachgemessen:** 601px durchgehend über 14 Stichproben à 250 ms (3,5 s).
+
+### Befund 2 — `app.fileManager.renameFile` kann auf einen Bestätigungsdialog warten
+
+`app.fileManager.renameFile` (Titel-Synchronisation, Aufgabe 18/19) zeigt bei einer
+`.paperless`-Datei Obsidians eingebauten Dialog „Links aktualisieren — Möchtest du
+interne Links aktualisieren, die auf diese Datei verweisen?" — **auch mit
+`alwaysUpdateLinks: true`** in `app.json`. Vermutung: Obsidian traut seinem Link-Index
+bei einer unbekannten/unregistrierten Endung nicht genug, um die Einstellung ohne
+Rückfrage anzuwenden. Das zugehörige Promise löst sich **nicht auf, bis der Dialog
+beantwortet ist** — kein Fehler, keine Notice, kein Fortschritt, der Befehl hängt
+unbegrenzt (live beobachtet: mehrere Sekunden ohne jede Reaktion, bis der Dialog manuell/
+automatisiert beantwortet wurde).
+
+Das ist **kein Plugin-Defekt** — `app.fileManager.renameFile` ist exakt die von Spec §3.6
+verlangte API, und der Dialog ist Obsidians eigene Sicherheitsmaßnahme (zeigt an, wie
+viele Links betroffen sind, bevor sie geändert werden). Es ist aber ein **echtes
+UX-Verhalten**, das ein Nutzer beim ersten „Synchronize document titles"-Lauf sieht und
+das für die Release-Doku (README, Nach Phase 2) festgehalten gehört: der Befehl kann
+scheinbar „hängen", bis die Rückfrage beantwortet ist.
+
+Für den automatisierten Treiber: Klick auf „Immer aktualisieren" nach Befehlsausführung
+löst die Blockade auf, danach läuft `runTitleSync` normal durch (Rename + Stub-Content-
+Update + Abschluss-Notice, alles wie in Aufgabe 18 spezifiziert).
+
+### Methodik-Fallstrick (Ergänzung): `.internal-embed.pdf-embed` matcht auch native PDF-Embeds
+
+Bei der Diagnose des Höhen-Bugs matchte ein zu weiter Selektor
+(`.internal-embed.pdf-embed`) versehentlich das native Kontroll-Embed (`![[muster.pdf]]`)
+statt des `.paperless`-Embeds, weil beide dieselben CSS-Klassen tragen (der Plugin-Embed
+ruft Obsidians eigenen PDF-Creator auf, der unterscheidet nicht zwischen den Aufrufern).
+Führte zu einem scheinbar widersprüchlichen Zwischenbefund. Für künftige Messungen: bei
+mehreren PDF-Embeds auf einer Testseite über die Embed-**Reihenfolge** oder eine
+eindeutige Testnotiz mit nur einem Embed disambiguieren, nicht über die CSS-Klasse allein.

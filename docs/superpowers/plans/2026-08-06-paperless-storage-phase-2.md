@@ -73,7 +73,7 @@ Gelten für **jede** Aufgabe dieses Plans zusätzlich zu den in Phase 1 geltende
 - Konsumiert von: nichts (reine Funktionen)
 - Gebraucht von: Aufgabe 18 (Titel-Sync), Aufgabe 19 (Suchmodal)
 
-- [ ] **Schritt 1: Failing Tests schreiben**
+- [x] **Schritt 1: Failing Tests schreiben**
 
 An `tests/core/stub.test.ts` anhängen:
 
@@ -121,12 +121,12 @@ Der erste Testfall vergleicht gegen einen mit `ä` zusammengesetzten String, wei
 dieser Dateiinhalt sonst nicht ASCII-sauber im Plan steht — im echten Test einfach
 `"Rechnung-Telekom- März-2026"` direkt als Literal schreiben (die Datei ist UTF-8).
 
-- [ ] **Schritt 2: Tests laufen lassen, Fehlschlag bestätigen**
+- [x] **Schritt 2: Tests laufen lassen, Fehlschlag bestätigen**
 
 Run: `npx vitest run tests/core/stub.test.ts`
 Erwartet: FAIL — `sanitizeStubFilename`/`uniqueStubPath` sind nicht exportiert.
 
-- [ ] **Schritt 3: Implementierung in `src/core/stub.ts` ergänzen**
+- [x] **Schritt 3: Implementierung in `src/core/stub.ts` ergänzen**
 
 Am Ende der Datei (nach `serializeStub`):
 
@@ -161,12 +161,12 @@ export function uniqueStubPath(
 }
 ```
 
-- [ ] **Schritt 4: Tests laufen lassen, Erfolg bestätigen**
+- [x] **Schritt 4: Tests laufen lassen, Erfolg bestätigen**
 
 Run: `npx vitest run tests/core/stub.test.ts`
 Erwartet: PASS, alle Tests grün.
 
-- [ ] **Schritt 5: Commit**
+- [x] **Schritt 5: Commit**
 
 ```bash
 git add src/core/stub.ts tests/core/stub.test.ts
@@ -190,7 +190,7 @@ git commit -m "feat: Dateinamen aus Dokumenttitel ableiten, kollisionsfrei"
 `GET /api/documents/?query=notes`): `{"count":1,"results":[{"id":1,"title":"notes-to-media",…}],…}`.
 `results` ist die maßgebliche Liste, jedes Element trägt mindestens `id` und `title`.
 
-- [ ] **Schritt 1: Failing Test schreiben**
+- [x] **Schritt 1: Failing Test schreiben**
 
 An `tests/core/paperless-api.test.ts` anhängen:
 
@@ -225,12 +225,12 @@ describe("parseSearchResults", () => {
 });
 ```
 
-- [ ] **Schritt 2: Test laufen lassen, Fehlschlag bestätigen**
+- [x] **Schritt 2: Test laufen lassen, Fehlschlag bestätigen**
 
 Run: `npx vitest run tests/core/paperless-api.test.ts`
 Erwartet: FAIL — `parseSearchResults` ist nicht exportiert.
 
-- [ ] **Schritt 3: Implementierung ergänzen**
+- [x] **Schritt 3: Implementierung ergänzen**
 
 In `src/core/paperless-api.ts`, nach `parseDocumentMeta`:
 
@@ -260,12 +260,12 @@ export function parseSearchResults(text: string): DocumentSearchResult[] {
 }
 ```
 
-- [ ] **Schritt 4: Test laufen lassen, Erfolg bestätigen**
+- [x] **Schritt 4: Test laufen lassen, Erfolg bestätigen**
 
 Run: `npx vitest run tests/core/paperless-api.test.ts`
 Erwartet: PASS.
 
-- [ ] **Schritt 5: Commit**
+- [x] **Schritt 5: Commit**
 
 ```bash
 git add src/core/paperless-api.ts tests/core/paperless-api.test.ts
@@ -284,7 +284,7 @@ git commit -m "feat: Suchergebnis-Antworten parsen"
 - Ändert: `PaperlessSettings` bekommt `embedHeight: number | null` (`null` = Obsidian-Default)
 - Gebraucht von: Aufgabe 16 (Settings-Tab), Aufgabe 17 (Embed-Höhe anwenden)
 
-- [ ] **Schritt 1: Failing Test schreiben**
+- [x] **Schritt 1: Failing Test schreiben**
 
 An `tests/core/settings.test.ts`, im `describe("DEFAULT_SETTINGS", …)`-Block ergänzen:
 
@@ -302,12 +302,12 @@ Und im `describe("mergeSettings", …)`-Block:
   });
 ```
 
-- [ ] **Schritt 2: Test laufen lassen, Fehlschlag bestätigen**
+- [x] **Schritt 2: Test laufen lassen, Fehlschlag bestätigen**
 
 Run: `npx vitest run tests/core/settings.test.ts`
 Erwartet: FAIL — `DEFAULT_SETTINGS.embedHeight` ist `undefined`, nicht `null`.
 
-- [ ] **Schritt 3: `PaperlessSettings` und `DEFAULT_SETTINGS` erweitern**
+- [x] **Schritt 3: `PaperlessSettings` und `DEFAULT_SETTINGS` erweitern**
 
 In `src/core/settings.ts`:
 
@@ -334,12 +334,12 @@ export const DEFAULT_SETTINGS: PaperlessSettings = {
 
 (`mergeSettings` bleibt unverändert — es spreadet bereits alle Felder aus `DEFAULT_SETTINGS`.)
 
-- [ ] **Schritt 4: Test laufen lassen, Erfolg bestätigen**
+- [x] **Schritt 4: Test laufen lassen, Erfolg bestätigen**
 
 Run: `npx vitest run tests/core/settings.test.ts`
 Erwartet: PASS.
 
-- [ ] **Schritt 5: Commit**
+- [x] **Schritt 5: Commit**
 
 ```bash
 git add src/core/settings.ts tests/core/settings.test.ts
@@ -361,7 +361,7 @@ git commit -m "feat: Embed-Hoehe als Einstellung"
   `planTitleSync(stubs: StubRecord[], metaById: ReadonlyMap<number, DocumentMeta>): RenamePlan[]`
 - Gebraucht von: Aufgabe 18
 
-- [ ] **Schritt 1: Failing Test schreiben**
+- [x] **Schritt 1: Failing Test schreiben**
 
 `tests/core/title-sync.test.ts` neu anlegen:
 
@@ -405,12 +405,12 @@ describe("planTitleSync", () => {
 });
 ```
 
-- [ ] **Schritt 2: Test laufen lassen, Fehlschlag bestätigen**
+- [x] **Schritt 2: Test laufen lassen, Fehlschlag bestätigen**
 
 Run: `npx vitest run tests/core/title-sync.test.ts`
 Erwartet: FAIL — Modul `src/core/title-sync.ts` existiert nicht.
 
-- [ ] **Schritt 3: `src/core/title-sync.ts` schreiben**
+- [x] **Schritt 3: `src/core/title-sync.ts` schreiben**
 
 ```typescript
 // Reiner Entscheidungskern fuer den Befehl "Synchronize document titles": vergleicht
@@ -451,12 +451,12 @@ export function planTitleSync(
 }
 ```
 
-- [ ] **Schritt 4: Test laufen lassen, Erfolg bestätigen**
+- [x] **Schritt 4: Test laufen lassen, Erfolg bestätigen**
 
 Run: `npx vitest run tests/core/title-sync.test.ts`
 Erwartet: PASS.
 
-- [ ] **Schritt 5: Commit**
+- [x] **Schritt 5: Commit**
 
 ```bash
 git add src/core/title-sync.ts tests/core/title-sync.test.ts
@@ -481,7 +481,7 @@ Anders als `i18n.ts` liegt `folder-suggest.ts` im Kit unter `src/obsidian/` (obs
 gekoppelt) statt `src/pure/` — das bestehende Skript kopiert nur `src/pure/*`. Nötig ist
 ein zweiter, expliziter Kopierblock wie er für den Test-Mock schon existiert.
 
-- [ ] **Schritt 1: `tools/sync-kit.sh` erweitern**
+- [x] **Schritt 1: `tools/sync-kit.sh` erweitern**
 
 Nach dem bestehenden `for m in i18n; do … done`-Block einfügen (vor dem
 `cp "$KIT/src/testing/obsidian-mock.ts" …`-Block):
@@ -500,17 +500,17 @@ Und im abschließenden `VENDOR.json`-Heredoc das Feld `"vendored"` aktualisieren
   "vendored": "i18n.ts, folder-suggest.ts, ../kit-testing/obsidian-mock.ts",
 ```
 
-- [ ] **Schritt 2: Skript ausführen**
+- [x] **Schritt 2: Skript ausführen**
 
 Run: `sh tools/sync-kit.sh`
 Erwartet: drei `vendored …`-Zeilen, darunter die neue für `folder-suggest.ts`.
 
-- [ ] **Schritt 3: Vendor-Header prüfen**
+- [x] **Schritt 3: Vendor-Header prüfen**
 
 Run: `head -1 src/vendor/kit/folder-suggest.ts`
 Erwartet: `// vendored from obsidian-kit@<version>, src/obsidian/folder-suggest.ts — do not hand-edit; re-vendor via tools/sync-kit.sh`
 
-- [ ] **Schritt 4: `check:pure` bewusst NICHT gegen diese Datei laufen lassen**
+- [x] **Schritt 4: `check:pure` bewusst NICHT gegen diese Datei laufen lassen**
 
 `src/vendor/kit/` ist laut `scripts/check-pure.mjs` einer der zwei geschützten Wurzeln —
 `folder-suggest.ts` importiert `obsidian` und würde das Gate zum Scheitern bringen. Das
@@ -526,13 +526,13 @@ nicht nur die aus `src/pure/`) — dann `folder-suggest.ts` stattdessen direkt u
 `src/obsidian/` vendoren (z. B. `src/obsidian/folder-suggest.ts`, gleicher Stamp-Header)
 und Schritt 1 entsprechend anpassen, bevor mit Aufgabe 16 fortgefahren wird.
 
-- [ ] **Schritt 5: Typecheck**
+- [x] **Schritt 5: Typecheck**
 
 Run: `npm run typecheck`
 Erwartet: keine Fehler (die Datei wird noch nirgends importiert, muss also nur isoliert
 kompilieren).
 
-- [ ] **Schritt 6: Commit**
+- [x] **Schritt 6: Commit**
 
 ```bash
 git add tools/sync-kit.sh src/vendor/kit/folder-suggest.ts src/vendor/kit/VENDOR.json
@@ -560,7 +560,7 @@ landen als **eine** Aufgabe: `settings-tab.ts` ruft `host.applyCacheFolderVisibi
 auf, die erst mit der `main.ts`-Verdrahtung existiert — beide Dateien kompilieren nur
 gemeinsam, ein Zwischenstand wäre nicht sinnvoll bewertbar.
 
-- [ ] **Schritt 1: `src/obsidian/hide-folder.ts` schreiben**
+- [x] **Schritt 1: `src/obsidian/hide-folder.ts` schreiben**
 
 ```typescript
 // Blendet den Cache-Ordner im Datei-Explorer per injiziertem <style>-Element aus. Der
@@ -590,7 +590,7 @@ export function removeCacheFolderVisibility(): void {
 }
 ```
 
-- [ ] **Schritt 2: `SettingsHost` erweitern und die vier Settings in `settings-tab.ts` ergänzen**
+- [x] **Schritt 2: `SettingsHost` erweitern und die vier Settings in `settings-tab.ts` ergänzen**
 
 In `src/obsidian/settings-tab.ts`:
 
@@ -702,7 +702,7 @@ export class PaperlessSettingTab extends PluginSettingTab {
 }
 ```
 
-- [ ] **Schritt 3: In `main.ts` verdrahten**
+- [x] **Schritt 3: In `main.ts` verdrahten**
 
 Import ergänzen, `applyCacheFolderVisibility`-Methode auf der Plugin-Klasse hinzufügen und
 beim Laden einmal aufrufen:
@@ -769,18 +769,18 @@ importierte Funktion aufruft. Falls das im Editor verwirrend ist, spricht nichts
 die Methode `syncCacheFolderVisibility` zu nennen — dann auch den Aufruf in
 `settings-tab.ts` weiter oben entsprechend anpassen.)
 
-- [ ] **Schritt 4: Typecheck**
+- [x] **Schritt 4: Typecheck**
 
 Run: `npm run typecheck`
 Erwartet: keine Fehler.
 
-- [ ] **Schritt 5: Lint**
+- [x] **Schritt 5: Lint**
 
 Run: `npm run lint`
 Erwartet: keine Fehler — insbesondere keine `no-static-styles-assignment`-Meldung (das
 `<style>`-`textContent` ist kein `.style.x`-Zugriff und fällt nicht unter diese Regel).
 
-- [ ] **Schritt 6: Commit**
+- [x] **Schritt 6: Commit**
 
 ```bash
 git add src/obsidian/settings-tab.ts src/obsidian/hide-folder.ts src/obsidian/main.ts
@@ -797,7 +797,7 @@ git commit -m "feat: restliche Einstellungen und Cache-Ordner-Ausblenden"
 **Interfaces:**
 - Konsumiert: `PaperlessSettings.embedHeight` (Aufgabe 13)
 
-- [ ] **Schritt 1: Höhe setzen, bevor der PDF-Viewer aufgerufen wird**
+- [x] **Schritt 1: Höhe setzen, bevor der PDF-Viewer aufgerufen wird**
 
 In `src/obsidian/render-core.ts`, `renderStub` — direkt nach `containerEl.empty();`:
 
@@ -824,18 +824,18 @@ export async function renderStub(
   // … Rest der Funktion unveraendert …
 ```
 
-- [ ] **Schritt 2: Typecheck + Lint**
+- [x] **Schritt 2: Typecheck + Lint**
 
 Run: `npm run typecheck && npm run lint`
 Erwartet: beide grün.
 
-- [ ] **Schritt 3: Bestehende Tests laufen lassen**
+- [x] **Schritt 3: Bestehende Tests laufen lassen**
 
 Run: `npx vitest run`
 Erwartet: weiterhin alle grün — `render-core.ts` hat keine dedizierten Unit-Tests (Phase-1-
 Präzedenzfall), diese Änderung darf aber keine der `core/`-Tests brechen.
 
-- [ ] **Schritt 4: Commit**
+- [x] **Schritt 4: Commit**
 
 ```bash
 git add src/obsidian/render-core.ts
@@ -857,7 +857,7 @@ git commit -m "feat: konfigurierbare Embed-Hoehe anwenden"
 - Liefert: `runTitleSync(deps: TitleSyncDeps): Promise<void>`, Befehl
   `"Synchronize document titles"`
 
-- [ ] **Schritt 1: `src/obsidian/title-sync-runner.ts` schreiben**
+- [x] **Schritt 1: `src/obsidian/title-sync-runner.ts` schreiben**
 
 ```typescript
 // Fuehrt den Befehl "Synchronize document titles" aus: alle .paperless-Stubs im Vault
@@ -938,7 +938,7 @@ export async function runTitleSync(deps: TitleSyncDeps): Promise<void> {
 }
 ```
 
-- [ ] **Schritt 2: Befehl in `main.ts` registrieren**
+- [x] **Schritt 2: Befehl in `main.ts` registrieren**
 
 In `src/obsidian/main.ts`, Import ergänzen und nach dem `clear-cache`-Befehl:
 
@@ -954,18 +954,18 @@ import { runTitleSync } from "./title-sync-runner";
     });
 ```
 
-- [ ] **Schritt 3: Typecheck + Lint**
+- [x] **Schritt 3: Typecheck + Lint**
 
 Run: `npm run typecheck && npm run lint`
 Erwartet: beide grün.
 
-- [ ] **Schritt 4: Bestehende Tests laufen lassen**
+- [x] **Schritt 4: Bestehende Tests laufen lassen**
 
 Run: `npx vitest run`
 Erwartet: alle grün (keine neuen Unit-Tests hier — obsidian-Layer, Präzedenzfall Phase 1;
 die Entscheidungslogik ist bereits in Aufgabe 14 getestet).
 
-- [ ] **Schritt 5: Commit**
+- [x] **Schritt 5: Commit**
 
 ```bash
 git add src/obsidian/title-sync-runner.ts src/obsidian/main.ts
@@ -1000,7 +1000,7 @@ sie). Reine Titel-/Volltextsuche deckt den Kernfall „Dokument einfügen" ab; F
 wäre eigener Aufwand ohne Bezug zu den übrigen elf Aufgaben dieses Plans — offener Punkt
 für einen dritten Plan, falls die Praxis es verlangt.
 
-- [ ] **Schritt 1: `src/obsidian/insert-modal.ts` schreiben**
+- [x] **Schritt 1: `src/obsidian/insert-modal.ts` schreiben**
 
 ```typescript
 // Befehl "Insert document": durchsucht paperless serverseitig (SuggestModal, siehe
@@ -1092,7 +1092,7 @@ export class InsertDocumentModal extends SuggestModal<DocumentSearchResult> {
 }
 ```
 
-- [ ] **Schritt 2: Befehl in `main.ts` registrieren**
+- [x] **Schritt 2: Befehl in `main.ts` registrieren**
 
 `editorCallback` statt `callback`, da der Befehl einen aktiven Editor braucht:
 
@@ -1117,17 +1117,17 @@ import { InsertDocumentModal } from "./insert-modal";
 
 `isConfigured` und `t` sind bereits importiert bzw. leicht zu ergänzen (`import { isConfigured } from "../core/settings"` steht schon für `resolveCacheFolder` da — `isConfigured` dazuschreiben; `t` aus `../core/i18n` importieren).
 
-- [ ] **Schritt 3: Typecheck + Lint**
+- [x] **Schritt 3: Typecheck + Lint**
 
 Run: `npm run typecheck && npm run lint`
 Erwartet: beide grün.
 
-- [ ] **Schritt 4: Bestehende Tests laufen lassen**
+- [x] **Schritt 4: Bestehende Tests laufen lassen**
 
 Run: `npx vitest run`
 Erwartet: alle grün.
 
-- [ ] **Schritt 5: Commit**
+- [x] **Schritt 5: Commit**
 
 ```bash
 git add src/obsidian/insert-modal.ts src/obsidian/main.ts
@@ -1157,7 +1157,7 @@ frisches `Component` als Zwischen-Parent, das vor jedem neuen Laden per `removeC
 abgemeldet wird — `removeChild` ruft `unload()` auf der ganzen Kette darunter auf. Analoges
 Muster: `3d-codeblocks/src/obsidian/file-view.ts` (`teardown()`).
 
-- [ ] **Schritt 1: `src/obsidian/file-view.ts` schreiben**
+- [x] **Schritt 1: `src/obsidian/file-view.ts` schreiben**
 
 ```typescript
 // Oeffnet eine .paperless-Datei im ganzen Pane (Datei-Explorer-Klick statt Embed) — wie
@@ -1216,7 +1216,7 @@ export class PaperlessFileView extends FileView {
 }
 ```
 
-- [ ] **Schritt 2: In `main.ts` registrieren**
+- [x] **Schritt 2: In `main.ts` registrieren**
 
 ```typescript
 import { PaperlessFileView, VIEW_TYPE_PAPERLESS } from "./file-view";
@@ -1233,17 +1233,17 @@ Try/catch, weil `registerExtensions` wirft, falls ein anderes Plugin die Endung 
 sich beansprucht (PROF-OBS-13) — das Embed über `embedRegistry` bleibt davon unberührt,
 beide Registries sind unabhängig (REGISTRY „Vier Wege, denselben Viewer zu zeigen").
 
-- [ ] **Schritt 3: Typecheck + Lint**
+- [x] **Schritt 3: Typecheck + Lint**
 
 Run: `npm run typecheck && npm run lint`
 Erwartet: beide grün.
 
-- [ ] **Schritt 4: Bestehende Tests laufen lassen**
+- [x] **Schritt 4: Bestehende Tests laufen lassen**
 
 Run: `npx vitest run`
 Erwartet: alle grün.
 
-- [ ] **Schritt 5: Commit**
+- [x] **Schritt 5: Commit**
 
 ```bash
 git add src/obsidian/file-view.ts src/obsidian/main.ts
@@ -1260,7 +1260,7 @@ git commit -m "feat: FileView oeffnet .paperless-Dateien im Pane"
 **Interfaces:**
 - Konsumiert: alles aus Aufgabe 11–21
 
-- [ ] **Schritt 1: Alle Gates laufen lassen**
+- [x] **Schritt 1: Alle Gates laufen lassen**
 
 ```bash
 npm run check:pure && npm run typecheck && npm run lint && npx vitest run && npm run build
@@ -1268,14 +1268,14 @@ npm run check:pure && npm run typecheck && npm run lint && npx vitest run && npm
 
 Erwartet: alle Schritte grün, `main.js` entsteht.
 
-- [ ] **Schritt 2: Plugin ins Testvault deployen**
+- [x] **Schritt 2: Plugin ins Testvault deployen**
 
 Wie in Phase-1-Aufgabe 10 — `main.js`, `manifest.json`, `styles.css` ins ProtoVault unter
 `.obsidian/plugins/paperless-storage/` kopieren (oder Symlink, falls in Phase 1 schon
 eingerichtet), Obsidian neu laden lassen (Befehl „Reload app without saving" oder
 Plugin aus-/einschalten).
 
-- [ ] **Schritt 3: Im echten Obsidian prüfen** *(die eigentliche Abnahme)*
+- [x] **Schritt 3: Im echten Obsidian prüfen** *(die eigentliche Abnahme)*
 
 1. Befehl „Insert document" in einer Notiz ausführen, nach einem bekannten Dokument
    suchen, auswählen → `![[…]]` erscheint an der Cursorposition und zeigt das PDF.
@@ -1300,7 +1300,7 @@ Plugin aus-/einschalten).
    `renameFile` nachgezogen).
 10. Entwicklertools prüfen: keine Fehler in der Konsole nach den obigen Schritten.
 
-- [ ] **Schritt 4: Abnahme protokollieren**
+- [x] **Schritt 4: Abnahme protokollieren**
 
 Die zehn Prüfpunkte mit Befund und Datum an
 `docs/superpowers/specs/2026-08-06-spike-ergebnis.md` anhängen, neuer Abschnitt
@@ -1308,7 +1308,7 @@ Die zehn Prüfpunkte mit Befund und Datum an
 Befund samt Fix in derselben Sitzung festhalten (Präzedenzfall: Phase-1-Aufgabe-10-Commit
 `5c86d5b`, das während der Abnahme selbst noch einen Fix mitbrachte).
 
-- [ ] **Schritt 5: Commit**
+- [x] **Schritt 5: Commit**
 
 ```bash
 git add -A
