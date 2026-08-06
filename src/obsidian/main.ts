@@ -5,6 +5,7 @@ import { obsidianTransport } from "./http";
 import { CacheStore } from "./cache-store";
 import { registerPaperlessEmbed } from "./embed";
 import { PaperlessSettingTab } from "./settings-tab";
+import { applyCacheFolderVisibility, removeCacheFolderVisibility } from "./hide-folder";
 
 export default class PaperlessStoragePlugin extends Plugin {
   settings: PaperlessSettings = DEFAULT_SETTINGS;
@@ -25,6 +26,8 @@ export default class PaperlessStoragePlugin extends Plugin {
 
     // Nicht-werfende Registrierungen zuerst (PROF-OBS-13).
     this.addSettingTab(new PaperlessSettingTab(this.app, this));
+    this.applyCacheFolderVisibility();
+    this.register(removeCacheFolderVisibility);
 
     const unregister = registerPaperlessEmbed(deps);
     if (unregister) {
@@ -41,6 +44,10 @@ export default class PaperlessStoragePlugin extends Plugin {
         new Notice(`Paperless storage: ${n} cached file(s) removed.`);
       },
     });
+  }
+
+  applyCacheFolderVisibility(): void {
+    applyCacheFolderVisibility(resolveCacheFolder(this.settings), this.settings.hideCacheFolder);
   }
 
   async saveSettings(): Promise<void> {
