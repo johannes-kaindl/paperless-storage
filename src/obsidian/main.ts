@@ -1,12 +1,19 @@
 import { getLanguage, Notice, Plugin } from "obsidian";
-import { DEFAULT_SETTINGS, mergeSettings, resolveCacheFolder, type PaperlessSettings } from "../core/settings";
-import { pickLang, setLang } from "../core/i18n";
+import {
+  DEFAULT_SETTINGS,
+  isConfigured,
+  mergeSettings,
+  resolveCacheFolder,
+  type PaperlessSettings,
+} from "../core/settings";
+import { pickLang, setLang, t } from "../core/i18n";
 import { obsidianTransport } from "./http";
 import { CacheStore } from "./cache-store";
 import { registerPaperlessEmbed } from "./embed";
 import { PaperlessSettingTab } from "./settings-tab";
 import { applyCacheFolderVisibility, removeCacheFolderVisibility } from "./hide-folder";
 import { runTitleSync } from "./title-sync-runner";
+import { InsertDocumentModal } from "./insert-modal";
 
 export default class PaperlessStoragePlugin extends Plugin {
   settings: PaperlessSettings = DEFAULT_SETTINGS;
@@ -51,6 +58,26 @@ export default class PaperlessStoragePlugin extends Plugin {
       name: "Synchronize document titles",
       callback: () => {
         void runTitleSync(deps);
+      },
+    });
+
+    this.addCommand({
+      id: "insert-document",
+      name: "Insert document",
+      editorCallback: (editor, ctx) => {
+        if (!isConfigured(this.settings)) {
+          new Notice(t("notConfigured"));
+          return;
+        }
+        new InsertDocumentModal(
+          {
+            app: this.app,
+            transport: deps.transport,
+            settings: () => this.settings,
+            sourcePath: ctx.file?.path ?? "",
+          },
+          editor,
+        ).open();
       },
     });
   }
