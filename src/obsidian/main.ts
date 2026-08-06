@@ -65,7 +65,12 @@ export default class PaperlessStoragePlugin extends Plugin {
       id: "sync-titles",
       name: "Synchronize document titles",
       callback: () => {
-        void runTitleSync(deps);
+        // Eine Ablehnung (renameFile/vault.modify wirft in der Schleife) landete sonst als
+        // unhandled rejection ohne jede Rueckmeldung fuer den Nutzer (Befund 2, Gesamt-
+        // Review Phase 2).
+        runTitleSync(deps).catch((e: unknown) => {
+          new Notice(`Paperless storage: title sync failed (${String(e)}).`);
+        });
       },
     });
 
@@ -91,7 +96,14 @@ export default class PaperlessStoragePlugin extends Plugin {
   }
 
   applyCacheFolderVisibility(): void {
-    applyCacheFolderVisibility(resolveCacheFolder(this.settings), this.settings.hideCacheFolder);
+    // Nicht activeDocument: das waere im ausgelagerten Einstellungsfenster (Obsidian
+    // >=1.13) das falsche Dokument (Befund 3, Gesamt-Review Phase 2). Das Dokument, das
+    // den Datei-Explorer besitzt, ist das des Haupt-Workspace.
+    applyCacheFolderVisibility(
+      this.app.workspace.containerEl.ownerDocument,
+      resolveCacheFolder(this.settings),
+      this.settings.hideCacheFolder,
+    );
   }
 
   async saveSettings(): Promise<void> {

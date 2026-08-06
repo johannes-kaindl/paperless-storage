@@ -10,7 +10,7 @@
 // `loadFile()` ist parameterlos.
 
 import { MarkdownRenderChild, type App, type TFile } from "obsidian";
-import { renderStub, type RenderDeps } from "./render-core";
+import { applyEmbedHeight, renderStub, type RenderDeps } from "./render-core";
 
 interface EmbedContext {
   app: App;
@@ -40,6 +40,10 @@ class PaperlessEmbed extends MarkdownRenderChild implements EmbedComponentLike {
   }
 
   loadFile(): void {
+    // Nur Embeds bekommen die Hoehen-Erzwingung (Befund 1, Gesamt-Review Phase 2) — die
+    // FileView (file-view.ts) ruft renderStub() ohne applyEmbedHeight() auf, damit die
+    // Einstellung nicht die ganze Pane auf Embed-Hoehe zwingt.
+    applyEmbedHeight(this.containerEl, this.deps.settings(), this);
     void renderStub(this.deps, this.file, this.containerEl, this);
   }
 }

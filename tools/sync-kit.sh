@@ -38,7 +38,7 @@ cat > src/vendor/kit/VENDOR.json <<JSON
   "source": "obsidian-kit",
   "version": "$VER",
   "sha": "$SHA",
-  "vendored": "i18n.ts, ../kit-testing/obsidian-mock.ts",
+  "vendored": "i18n.ts, ../../obsidian/folder-suggest.ts, ../kit-testing/obsidian-mock.ts",
   "note": "Verbatim snapshot. Never hand-edit. Re-vendor via tools/sync-kit.sh. endpoint_config bewusst NICHT vendored: sein authHeaders() erzeugt 'Bearer', paperless braucht 'Token'."
 }
 JSON

@@ -20,6 +20,40 @@ export interface RenderDeps {
   settings: () => PaperlessSettings;
 }
 
+/**
+ * Erzwingt die konfigurierte Embed-Hoehe auf `containerEl` gegen Obsidians eigenen
+ * PDF-Viewer, der sie nachtraeglich ueberschreibt. NUR fuer echte Embeds gedacht (Setting
+ * "Height in pixels for EMBEDDED documents") — deshalb ruft dies ausschliesslich embed.ts
+ * auf, NICHT renderStub() selbst, sonst wirkt die Einstellung faelschlich auch auf die
+ * ganze FileView-Pane (file-view.ts uebergibt contentEl der GANZEN Pane als containerEl).
+ *
+ * Dynamische Zuweisung aus einer Variablen — vom obsidianmd-Lint ausdruecklich erlaubt
+ * (nur STATISCHE style-Literale sind verboten, PROF-OBS-13).
+ *
+ * Gemessen (2026-08-06, Abnahme Phase 2): Obsidians eigener PDF-Viewer setzt NACH dem
+ * Laden seine eigene, inhaltsabhaengige Hoehe auf genau dieses Element — und zwar in
+ * ZWEI Schueben (erste, grobe Layout-Passe nach ~300-600ms, zweite nach vollstaendiger
+ * Seitenberechnung ~1s spaeter). Ein einmalig abgemeldeter MutationObserver faengt nur
+ * die erste ab und laesst die zweite durch. Der Observer bleibt deshalb fuer die ganze
+ * Lebensdauer des Embeds aktiv (Abmeldung erst beim Unload ueber parent.register) und
+ * korrigiert jede Abweichung — das eigene Zuruecksetzen loest zwar selbst wieder eine
+ * Mutation aus, die dann aber bereits targetHeight sieht und nichts mehr tut, also keine
+ * Endlosschleife. `!important` waere die naheliegende Alternative, ist aber durch
+ * PROF-OBS-13 verboten.
+ */
+export function applyEmbedHeight(containerEl: HTMLElement, settings: PaperlessSettings, parent: Component): void {
+  if (settings.embedHeight === null) return;
+  const targetHeight = `${settings.embedHeight}px`;
+  containerEl.style.height = targetHeight;
+  const observer = new MutationObserver(() => {
+    if (containerEl.style.height !== targetHeight) {
+      containerEl.style.height = targetHeight;
+    }
+  });
+  observer.observe(containerEl, { attributes: true, attributeFilter: ["style"] });
+  parent.register(() => observer.disconnect());
+}
+
 /** Zeigt das Dokument des Stubs in `containerEl`. Wirft nie — Fehler werden gerendert. */
 export async function renderStub(
   deps: RenderDeps,
@@ -29,31 +63,6 @@ export async function renderStub(
 ): Promise<void> {
   containerEl.empty();
   const settings = deps.settings();
-
-  // Dynamische Zuweisung aus einer Variablen — vom obsidianmd-Lint ausdruecklich erlaubt
-  // (nur STATISCHE style-Literale sind verboten, PROF-OBS-13).
-  //
-  // Gemessen (2026-08-06, Abnahme Phase 2): Obsidians eigener PDF-Viewer setzt NACH dem
-  // Laden seine eigene, inhaltsabhaengige Hoehe auf genau dieses Element — und zwar in
-  // ZWEI Schueben (erste, grobe Layout-Passe nach ~300-600ms, zweite nach vollstaendiger
-  // Seitenberechnung ~1s spaeter). Ein einmalig abgemeldeter MutationObserver faengt nur
-  // die erste ab und laesst die zweite durch. Der Observer bleibt deshalb fuer die ganze
-  // Lebensdauer des Embeds aktiv (Abmeldung erst beim Unload ueber parent.register) und
-  // korrigiert jede Abweichung — das eigene Zuruecksetzen loest zwar selbst wieder eine
-  // Mutation aus, die dann aber bereits targetHeight sieht und nichts mehr tut, also keine
-  // Endlosschleife. `!important` waere die naheliegende Alternative, ist aber durch
-  // PROF-OBS-13 verboten.
-  if (settings.embedHeight !== null) {
-    const targetHeight = `${settings.embedHeight}px`;
-    containerEl.style.height = targetHeight;
-    const observer = new MutationObserver(() => {
-      if (containerEl.style.height !== targetHeight) {
-        containerEl.style.height = targetHeight;
-      }
-    });
-    observer.observe(containerEl, { attributes: true, attributeFilter: ["style"] });
-    parent.register(() => observer.disconnect());
-  }
 
   if (!isConfigured(settings)) {
     message(containerEl, t("notConfigured"));

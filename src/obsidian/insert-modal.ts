@@ -7,6 +7,8 @@ import { Notice, SuggestModal, TFile, type App, type Editor } from "obsidian";
 import { parseStub, serializeStub, sanitizeStubFilename, uniqueStubPath, StubParseError } from "../core/stub";
 import { searchRequest, parseSearchResults, type DocumentSearchResult } from "../core/paperless-api";
 import type { PaperlessSettings } from "../core/settings";
+import { PaperlessHttpError } from "../core/errors";
+import { t } from "../core/i18n";
 import type { Transport } from "./http";
 
 export interface InsertModalDeps {
@@ -19,12 +21,17 @@ export interface InsertModalDeps {
 }
 
 export class InsertDocumentModal extends SuggestModal<DocumentSearchResult> {
+  /** Verhindert Notice-Spam: 401/403 wuerde sonst bei jedem Tastenanschlag erneut melden
+   *  (Befund 5, Gesamt-Review Phase 2 — analog zum bereits behobenen title-sync-runner.ts,
+   *  Commit 0590d71). */
+  private authNoticeShown = false;
+
   constructor(
     private readonly deps: InsertModalDeps,
     private readonly editor: Editor,
   ) {
     super(deps.app);
-    this.setPlaceholder("Search paperless documents…");
+    this.setPlaceholder(t("searchPlaceholder"));
   }
 
   async getSuggestions(query: string): Promise<DocumentSearchResult[]> {
@@ -34,13 +41,20 @@ export class InsertDocumentModal extends SuggestModal<DocumentSearchResult> {
     try {
       const text = await this.deps.transport.text(searchRequest(cfg, query));
       return parseSearchResults(text).slice(0, 20);
-    } catch {
+    } catch (e) {
+      // Ein abgelehnter Token sah bislang identisch aus wie "keine Treffer" — das macht
+      // ihn fuer den Nutzer unsichtbar. Andere Fehler (Netz, 404 etc.) bleiben still, wie
+      // bisher: eine leere Trefferliste ist fuer sie eine plausible Reaktion.
+      if (e instanceof PaperlessHttpError && (e.status === 401 || e.status === 403) && !this.authNoticeShown) {
+        this.authNoticeShown = true;
+        new Notice(t("invalidToken"));
+      }
       return [];
     }
   }
 
   renderSuggestion(item: DocumentSearchResult, el: HTMLElement): void {
-    el.createDiv({ text: item.title === "" ? `Document ${item.id}` : item.title });
+    el.createDiv({ text: item.title === "" ? t("documentFallback", item.id) : item.title });
   }
 
   onChooseSuggestion(item: DocumentSearchResult): void {
@@ -53,7 +67,7 @@ export class InsertDocumentModal extends SuggestModal<DocumentSearchResult> {
       const linktext = this.deps.app.metadataCache.fileToLinktext(file, this.deps.sourcePath);
       this.editor.replaceSelection(`![[${linktext}]]`);
     } catch (e) {
-      new Notice(`Paperless storage: could not insert document (${String(e)}).`);
+      new Notice(`Paperless storage: ${t("insertFailed", String(e))}`);
     }
   }
 
@@ -75,7 +89,7 @@ export class InsertDocumentModal extends SuggestModal<DocumentSearchResult> {
     const existing = await this.findExistingStub(item.id);
     if (existing) return existing;
 
-    const base = sanitizeStubFilename(item.title === "" ? `Document ${item.id}` : item.title);
+    const base = sanitizeStubFilename(item.title === "" ? t("documentFallback", item.id) : item.title);
     const dir = this.deps.sourcePath.includes("/")
       ? this.deps.sourcePath.slice(0, this.deps.sourcePath.lastIndexOf("/"))
       : "";

@@ -82,7 +82,7 @@ export async function runTitleSync(deps: TitleSyncDeps): Promise<void> {
     renamed++;
   }
 
-  new Notice(`Paperless storage: ${renamed} title(s) synchronized.`);
+  new Notice(`Paperless storage: ${t("titlesSynced", renamed)}`);
   if (authFailed) {
     // Eigene Notice statt Vermischen mit der Zusammenfassung — ein abgelehnter Token
     // betrifft potenziell alle Stubs und darf nicht im "0 synchronized" untergehen.

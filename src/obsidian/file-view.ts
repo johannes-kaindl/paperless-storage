@@ -4,6 +4,7 @@
 
 import { Component, FileView, type TFile, type WorkspaceLeaf } from "obsidian";
 import { renderStub, type RenderDeps } from "./render-core";
+import { t } from "../core/i18n";
 
 export const VIEW_TYPE_PAPERLESS = "paperless-storage-file-view";
 
@@ -29,7 +30,7 @@ export class PaperlessFileView extends FileView {
   }
 
   getDisplayText(): string {
-    return this.file?.basename ?? "Paperless document";
+    return this.file?.basename ?? t("fileViewFallback");
   }
 
   async onLoadFile(file: TFile): Promise<void> {

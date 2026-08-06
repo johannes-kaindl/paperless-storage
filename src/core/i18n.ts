@@ -11,6 +11,11 @@ defineStrings({
     brokenStub: "Cannot read this .paperless file: {0}",
     cacheWriteFailed: "Downloaded, but could not be cached: {0}",
     retry: "Retry",
+    searchPlaceholder: "Search paperless documents…",
+    documentFallback: "Document {0}",
+    insertFailed: "Could not insert document ({0}).",
+    titlesSynced: "{0} title(s) synchronized.",
+    fileViewFallback: "Paperless document",
   },
   de: {
     notConfigured: "Paperless Storage ist noch nicht eingerichtet — bitte in den Plugin-Einstellungen konfigurieren.",
@@ -22,6 +27,11 @@ defineStrings({
     brokenStub: "Diese .paperless-Datei ist nicht lesbar: {0}",
     cacheWriteFailed: "Geladen, konnte aber nicht zwischengespeichert werden: {0}",
     retry: "Erneut versuchen",
+    searchPlaceholder: "paperless-Dokumente durchsuchen…",
+    documentFallback: "Dokument {0}",
+    insertFailed: "Dokument konnte nicht eingefügt werden ({0}).",
+    titlesSynced: "{0} Titel synchronisiert.",
+    fileViewFallback: "Paperless-Dokument",
   },
 });
 
