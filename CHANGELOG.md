@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.1] — 2026-08-06
+
 ### Fixed
 
 - Moved the vendored test-only Obsidian mock out of `src/` (Community Store review
