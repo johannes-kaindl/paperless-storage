@@ -209,3 +209,71 @@ Tests mit flachem `checksum`-Feld bleiben als Fallback-Fall grün.
 
 **Konsequenz für Aufgabe 10:** keine — `render-core.ts` konsumiert `meta.checksum` bereits
 als fertigen String und kennt die interne Form nicht.
+
+## Abnahme Phase 1 (Aufgabe 10, Schritt 7)
+
+**Gemessen:** 2026-08-06 · gegen `https://paperless.jkaindl.de` (paperless-ngx 3.0.5),
+Testvault `00_ProtoVault`, Obsidian 1.13.5. Über CDP gegen das laufende Obsidian
+(`--remote-debugging-port=9222`) automatisiert nachvollzogen statt von Hand geklickt —
+Treiber ist Wegwerf-Werkzeug dieser Session, wie im Abschnitt „Reproduktion" oben.
+
+| # | Prüfpunkt | Befund |
+|---|---|---|
+| 1 | Ohne Server-URL → „not set up yet" | **OK** — `messageText`: "Paperless Storage ist noch nicht eingerichtet — bitte in den Plugin-Einstellungen konfigurieren." |
+| 2 | Server-URL + Token eintragen | **OK** |
+| 3 | `Test.paperless` + `![[Test.paperless]]` | **OK** — Stub und Notiz angelegt, Link löst auf |
+| 4 | PDF erscheint, scrollbar | **OK** — `hasPdfViewer:true`, 2 `<canvas>`, `scrollTop` 0→300 wirksam, `scrollHeight` 1760 gegen `clientHeight` 865 |
+| 5 | `_paperless-storage/1.pdf` entstanden | **OK** — 9412 Bytes |
+| 6 | Falscher Token → „API token rejected", kein „Server nicht erreichbar" | **OK (nach Fix, siehe unten)** — `messageText`: "API-Token abgelehnt. Bitte in den Plugin-Einstellungen prüfen." bei gleichzeitig sichtbarem PDF |
+| 7 | Netzwerk trennen → PDF aus Cache, Hinweis „offline" | **OK (nach Fix, separat verifiziert)** — `messageText`: "Server nicht erreichbar — zwischengespeicherte Fassung." bei gleichzeitig sichtbarem PDF |
+| 8 | „Clear document cache" → Ordner leer | **OK** — `remainingFiles: []` |
+| 9 | Notiz schließen → keine Fehler, keine Reste | **OK** — 0 verbliebene Markdown-Leaves, 0 verbliebene `.pdf-container`/`.pdf-viewer`-Knoten, Konsole ohne Fehler/Warnungen über den gesamten Lauf |
+
+### Befund, der Aufgabe 10 während der Abnahme selbst noch geändert hat
+
+**Der Plan-Code für `showPdf()`/`renderStub()` trägt Punkt 6 und 7 so nicht** — gemessen,
+nicht vermutet. Erster automatisierter Lauf (vor dem Fix):
+
+```
+Punkt 6 (falscher Token, Cache vorhanden): messageText: null, hasPdfViewer: true
+Punkt 7 (Server unerreichbar, Cache vorhanden): messageText: null, hasPdfViewer: true
+```
+
+Ursache: `renderStub()` ruft zwar `loading.setText(t("offline"))` im Fehlerzweig des
+Binär-Downloads auf, aber direkt danach — ohne dazwischenliegenden Render-Frame —
+`loading.remove()`, bevor `showPdf()` läuft. Der Hinweis wird gesetzt und im selben Zug
+wieder entfernt; sichtbar wird er nie. Der `authFailed`-Zweig deckt zudem nur den Fall
+„kein Cache" ab (`if (authFailed && !deps.cache.has(path))`) — ist bereits ein Cache da
+(der Normalfall nach Punkt 4/5), läuft `needsRefresh(stub, null, true)` auf `false`
+(Aufgabe 7, gewollt: „Metadaten unerreichbar → Cache gilt"), das Binär-Fetch wird gar
+nicht erst versucht, und die Notiz zeigt das PDF ohne jeden Hinweis auf den
+abgelehnten Token.
+
+**Fix in `render-core.ts`:** Ein `cacheNotice`-Wert wird gesammelt (aus `authFailed`
+**oder** `meta === null` bei vorhandenem Cache, **oder** aus einem gescheiterten
+Refresh-Versuch) und erst am Ende — statt `loading.remove()` — als `loading.setText(...)`
+gesetzt, direkt bevor `showPdf()` den Viewer daneben aufbaut. Beide Nachrichten bleiben
+dadurch neben dem PDF sichtbar, exakt wie in Schritt 7 des Plans gefordert.
+
+**Nachgemessen nach dem Fix:** Punkt 6 s. Tabelle oben. Punkt 7 aus der Tabelle stammt
+aus einem separaten Lauf mit echtem unerreichbarem Host (`https://paperless-unreachable.
+invalid.jkaindl.de`) statt CDP-Netzwerk-Emulation — siehe nächster Abschnitt, warum.
+Zusätzlich verifiziert: derselbe Host **ohne** vorhandenen Cache liefert korrekt
+„Server nicht erreichbar, keine zwischengespeicherte Fassung vorhanden." (`noCacheOffline`),
+kein PDF.
+
+### Zwei weitere Fallstricke der Messung selbst (Ergänzung zur Liste oben)
+
+- **`Page.bringToFront` (CDP) reicht nicht, `document.hasFocus()` lügt.** Ohne echten
+  macOS-Fokus (`osascript -e 'tell application "Obsidian" to activate'`) bleibt Obsidians
+  virtualisierte Reading-View leer — der `markdown-preview-sizer` bekommt eine
+  `padding-bottom`-Schätzung, aber keine Kind-Elemente, obwohl `document.hasFocus()`
+  bereits `true` meldet und die Leaf als `activeLeaf` geführt wird. Wirkung ist nicht
+  dauerhaft: der Fokus muss vor **jedem** `openFile()`-Aufruf neu gesetzt werden, nicht
+  nur einmal zu Sessionbeginn — sonst rendert nur der erste Aufruf.
+- **`Network.emulateNetworkConditions(offline:true)` wirkt nicht auf `requestUrl`.**
+  Obsidians `requestUrl` läuft über Electrons eigenen Netzwerk-Stack (Hauptprozess), nicht
+  über den vom Chrome-DevTools-Protocol instrumentierten Renderer-Netzwerk-Pfad. Ein damit
+  „getrennter" Test liefert scheinbar Erfolg (der Request geht durch), ohne die Notiz
+  offline zu testen. Ein wirklicher Offline-Zweig lässt sich stattdessen über eine
+  absichtlich unauflösbare Server-URL erzwingen.
