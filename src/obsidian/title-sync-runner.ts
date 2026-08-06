@@ -8,6 +8,7 @@ import { parseStub, serializeStub, sanitizeStubFilename, uniqueStubPath, StubPar
 import { documentMetaRequest, parseDocumentMeta, type DocumentMeta } from "../core/paperless-api";
 import { planTitleSync, type StubRecord } from "../core/title-sync";
 import { isConfigured, type PaperlessSettings } from "../core/settings";
+import { PaperlessHttpError } from "../core/errors";
 import { t } from "../core/i18n";
 import type { Transport } from "./http";
 
@@ -38,13 +39,22 @@ export async function runTitleSync(deps: TitleSyncDeps): Promise<void> {
   }
 
   const metaById = new Map<number, DocumentMeta>();
+  let authFailed = false;
   for (const { stub } of stubs) {
     if (metaById.has(stub.id)) continue;
     try {
       const meta = parseDocumentMeta(await deps.transport.text(documentMetaRequest(cfg, stub.id)));
       metaById.set(stub.id, meta);
-    } catch {
-      // Nicht erreichbar/geloescht — planTitleSync ueberspringt Stubs ohne Eintrag hier.
+    } catch (e) {
+      // 401/403 (Token abgelehnt) macht das Ergebnis fuer den Nutzer unbrauchbar — das
+      // muss sichtbar werden, sonst sieht ein Totalausfall wie "alles aktuell" aus.
+      // 404 (Dokument geloescht) bleibt laut Spec §5 still: Stub bleibt liegen, kein
+      // Rename-Vorschlag ohne Metadaten. Andere Fehler (z. B. Netzwerkausfall ohne
+      // HTTP-Status) landen ebenfalls im stillen Zweig — planTitleSync ueberspringt
+      // Stubs ohne Eintrag hier.
+      if (e instanceof PaperlessHttpError && (e.status === 401 || e.status === 403)) {
+        authFailed = true;
+      }
     }
   }
 
@@ -73,4 +83,9 @@ export async function runTitleSync(deps: TitleSyncDeps): Promise<void> {
   }
 
   new Notice(`Paperless storage: ${renamed} title(s) synchronized.`);
+  if (authFailed) {
+    // Eigene Notice statt Vermischen mit der Zusammenfassung — ein abgelehnter Token
+    // betrifft potenziell alle Stubs und darf nicht im "0 synchronized" untergehen.
+    new Notice(t("invalidToken"));
+  }
 }
