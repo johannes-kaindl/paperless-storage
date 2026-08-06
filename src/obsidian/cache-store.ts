@@ -7,6 +7,9 @@ export class CacheStore {
   constructor(
     private readonly vault: Vault,
     private readonly folder: () => string,
+    /** app.fileManager.trashFile — respektiert die Papierkorb-Einstellung des Nutzers,
+     *  anders als vault.delete (obsidianmd/prefer-file-manager-trash-file). */
+    private readonly trash: (file: TFile) => Promise<void>,
   ) {}
 
   file(path: string): TFile | null {
@@ -35,7 +38,7 @@ export class CacheStore {
     const victims = this.vault
       .getFiles()
       .filter((f) => f.path.startsWith(dir + "/") && f.extension === "pdf");
-    for (const f of victims) await this.vault.delete(f);
+    for (const f of victims) await this.trash(f);
     return victims.length;
   }
 

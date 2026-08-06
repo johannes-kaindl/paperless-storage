@@ -25,7 +25,11 @@ export default class PaperlessStoragePlugin extends Plugin {
     // (PROF-OBS-07) — der reine i18n-Kern kennt obsidian nicht.
     setLang(pickLang(getLanguage()));
 
-    const cache = new CacheStore(this.app.vault, () => resolveCacheFolder(this.settings));
+    const cache = new CacheStore(
+      this.app.vault,
+      () => resolveCacheFolder(this.settings),
+      (f) => this.app.fileManager.trashFile(f),
+    );
     const deps = {
       app: this.app,
       transport: obsidianTransport(),
