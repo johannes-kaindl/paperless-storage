@@ -44,3 +44,32 @@ export function serializeStub(stub: DocumentStub): string {
   if (stub.added !== undefined) out["added"] = stub.added;
   return JSON.stringify(out, null, 2) + "\n";
 }
+
+/** Ersetzt Zeichen, die Obsidian in Dateinamen nicht erlaubt (`\ / : * ? " < > |`),
+ *  durch "-" und kappt auf eine handhabbare Laenge. Ein leerer/reiner Whitespace-Titel
+ *  wuerde sonst eine unbenutzbare Datei ("".paperless) erzeugen. */
+export function sanitizeStubFilename(title: string): string {
+  const cleaned = title.replace(/[\\/:*?"<>|]/g, "-").trim();
+  const base = cleaned === "" ? "Untitled" : cleaned;
+  return base.slice(0, 100);
+}
+
+/** Findet einen im Vault freien `<base>.paperless`-Pfad, mit " 2", " 3", … bei
+ *  Kollision — Vault-Pfade muessen eindeutig sein, `vault.create()` wirft sonst.
+ *  Rein: die Kollisionslogik ist ohne Vault-Mock testbar, der Aufrufer liefert die
+ *  vorhandenen Pfade (z. B. aus `vault.getFiles().map(f => f.path)`). */
+export function uniqueStubPath(
+  folder: string,
+  base: string,
+  existingPaths: ReadonlySet<string>,
+): string {
+  const dir = folder.replace(/\/+$/, "");
+  const prefix = dir === "" ? "" : `${dir}/`;
+  let candidate = `${prefix}${base}.paperless`;
+  let n = 2;
+  while (existingPaths.has(candidate)) {
+    candidate = `${prefix}${base} ${n}.paperless`;
+    n++;
+  }
+  return candidate;
+}
