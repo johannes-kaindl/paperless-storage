@@ -376,11 +376,10 @@ Vorwissen funktionieren.
 ## 11 Offene Punkte
 
 - **Ergebnis des Spikes aus §4** — alles Weitere hängt daran.
-- **`isDesktopOnly` im Manifest: noch nicht entscheidbar.** Ob `embedRegistry`
-  und der native PDF-Viewer auf Obsidian Mobile tragen, ist ungeprüft. Der
-  Spike sollte es mitbeantworten; bis dahin ist der Manifest-Wert offen. Ein
-  Store-Plugin, das auf Mobile still nichts tut, ist ein Review-Risiko —
-  lieber ehrlich `isDesktopOnly: true` als eine leere Fläche.
+- **`isDesktopOnly` im Manifest: entschieden auf `true`** (Stand 2026-08-06). Der Spike
+  hat nur Desktop gemessen; ob `embedRegistry` und der native PDF-Viewer auf Obsidian
+  Mobile tragen, bleibt ungeprüft. Statt einer leeren Fläche im Store-Review der
+  ehrliche Default — Revision erst, wenn Mobile-Unterstützung gezielt geprüft wird.
 - **Verhalten mehrerer Vaults gegen dieselbe Instanz** — Cache und Stubs sind
   vault-lokal, das sollte tragen, ist aber ungeprüft.
 - **Umgang mit gelöschten Dokumenten:** Der Stub bleibt liegen und zeigt einen
