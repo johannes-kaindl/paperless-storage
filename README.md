@@ -95,13 +95,13 @@ your vault — it gets backlinks, appears in the graph, and works with autocompl
 any other file. An adapter on Obsidian's (undocumented) `embedRegistry` renders it: the
 document bytes are fetched from paperless-ngx using your API token, cached in the vault,
 and handed to Obsidian's own PDF viewer for display — no PDF renderer is bundled with
-this plugin. Architecture and design rationale: [`AGENTS.md`](AGENTS.md) and
+this plugin. Architecture and design rationale: [`CLAUDE.md`](CLAUDE.md) and
 [`docs/superpowers/specs/2026-08-05-paperless-storage-design.md`](docs/superpowers/specs/2026-08-05-paperless-storage-design.md).
 
 ## Contributing
 
 Issues/PRs on [git.jkaindl.de](https://git.jkaindl.de/jkaindl/paperless-storage). This
-project is test-driven (`npm test`, `npm run gate`); see [`AGENTS.md`](AGENTS.md) for
+project is test-driven (`npm test`, `npm run gate`); see [`CLAUDE.md`](CLAUDE.md) for
 the wider development workflow.
 
 ## License
