@@ -10,7 +10,9 @@
     "check:pure": "node scripts/check-pure.mjs",
     "test": "npm run check:pure && vitest run",
     "lint": "eslint src",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lab": "node --experimental-transform-types scripts/paperless-lab.ts",
+    "typecheck:scripts": "tsc --noEmit --skipLibCheck --allowImportingTsExtensions --moduleResolution bundler --target ES2022 --module ESNext --strict scripts/paperless-lab.ts"
   },
   "devDependencies": {
     "esbuild": "^0.21.0",

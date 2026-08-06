@@ -38,6 +38,21 @@ describe("parseDocumentMeta", () => {
     );
     expect(meta).toEqual({ id: 42, title: "Mietvertrag", checksum: "abc", created: "2026-08-05" });
   });
+  it("liest die Pruefsumme aus dem versions-Array (gemessen gegen paperless-ngx 3.0.5, kein Top-Level-checksum-Feld)", () => {
+    const meta = parseDocumentMeta(
+      '{"id":1,"title":"notes-to-media","created":"2026-08-06",' +
+        '"versions":[{"id":1,"checksum":"root-sum","is_root":true}]}',
+    );
+    expect(meta.checksum).toBe("root-sum");
+  });
+  it("bevorzugt die Root-Version, wenn mehrere versions vorliegen", () => {
+    const meta = parseDocumentMeta(
+      '{"id":1,"title":"x","created":"",' +
+        '"versions":[{"id":2,"checksum":"nicht-root","is_root":false},' +
+        '{"id":1,"checksum":"root-sum","is_root":true}]}',
+    );
+    expect(meta.checksum).toBe("root-sum");
+  });
   it("wirft bei kaputtem JSON", () => {
     expect(() => parseDocumentMeta("<html>")).toThrow();
   });

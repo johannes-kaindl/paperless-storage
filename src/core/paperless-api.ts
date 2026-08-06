@@ -54,6 +54,24 @@ export function searchRequest(cfg: ApiConfig, query: string): RequestSpec {
   };
 }
 
+/**
+ * Gemessen gegen paperless-ngx 3.0.5 (2026-08-06): der Response traegt KEIN
+ * Top-Level-`checksum` mehr, sondern ein `versions`-Array (Dokument-Reprozessierung).
+ * Die Root-Version traegt die Pruefsumme der urspruenglichen Datei. Ein Top-Level-Feld
+ * wird als Fallback weiter gelesen, falls eine aeltere Instanz es doch liefert.
+ */
+function extractChecksum(obj: Record<string, unknown>): string {
+  const versions = obj["versions"];
+  if (Array.isArray(versions)) {
+    const isVersion = (v: unknown): v is Record<string, unknown> =>
+      typeof v === "object" && v !== null;
+    const root = versions.find((v) => isVersion(v) && v["is_root"] === true);
+    const chosen = root ?? (isVersion(versions[0]) ? versions[0] : undefined);
+    if (chosen && typeof chosen["checksum"] === "string") return chosen["checksum"];
+  }
+  return typeof obj["checksum"] === "string" ? obj["checksum"] : "";
+}
+
 export function parseDocumentMeta(text: string): DocumentMeta {
   const parsed = JSON.parse(text) as unknown;
   if (typeof parsed !== "object" || parsed === null) {
@@ -67,7 +85,7 @@ export function parseDocumentMeta(text: string): DocumentMeta {
   return {
     id,
     title: typeof obj["title"] === "string" ? obj["title"] : "",
-    checksum: typeof obj["checksum"] === "string" ? obj["checksum"] : "",
+    checksum: extractChecksum(obj),
     created: typeof obj["created"] === "string" ? obj["created"] : "",
   };
 }

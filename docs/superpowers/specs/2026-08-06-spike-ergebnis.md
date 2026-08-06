@@ -149,3 +149,63 @@ bewusst nicht vorgezogen.
 osascript -e 'quit app "Obsidian"' && open -a Obsidian --args --remote-debugging-port=9222
 npm run build && cp main.js manifest.json "$OBSIDIAN_PLUGIN_DIR/paperless-storage/"
 ```
+
+## Lab-Lauf (Aufgabe 8, CORE-TEST-02)
+
+**Gemessen:** 2026-08-06 · gegen `https://paperless.jkaindl.de` (paperless-ngx 3.0.5),
+Dokument-ID 1 (`notes-to-media`, zu diesem Zweck hochgeladen — die Instanz hatte zuvor
+0 Dokumente, obwohl die Vorbedingung des Plans "mindestens ein Dokument" verlangt).
+
+```
+Lab gegen https://paperless.jkaindl.de, Dokument 1
+
+       title="notes-to-media" checksum=c2f157951458…
+  OK   Metadaten lesen
+       9412 Bytes, PDF-Header vorhanden
+  OK   Archiv-PDF holen
+       Status 401, Servermeldung: Invalid token.
+  OK   401 bei falschem Token
+       Status 404 wie erwartet
+  OK   404 bei unbekannter ID
+```
+
+Alle vier Fälle **OK**. Die 401-Zeile bestätigt: der Server liefert `{"detail":"Invalid
+token."}`, `extractErrorMessage` findet die Meldung über den `detail`-Zweig — genau der
+Pfad, den Aufgabe 3 zusätzlich zu `error`/`error.message`/`message` ergänzt hatte.
+
+### Drei Abweichungen von der Plan-Annahme — der Befund gewinnt
+
+**1. Node `--experimental-strip-types` reicht nicht.** `src/core/errors.ts` nutzt
+TypeScript-Parameter-Properties (`constructor(readonly status: number, ...)`). Strip-only
+wirft `ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`, weil das eine echte Transformation ist, kein
+reines Entfernen von Typannotationen. Fix: `npm run lab` nutzt
+`node --experimental-transform-types` statt `--experimental-strip-types`. Zusätzlich
+verlangt Node bei nativer TS-Ausführung explizite `.ts`-Endungen in relativen Imports
+(anders als TypeScripts eigener `bundler`-Moduleauflösung) — `scripts/paperless-lab.ts`
+importiert entsprechend `"../src/core/paperless-api.ts"` statt ohne Endung.
+
+**2. `typecheck:scripts` bricht ohne `--skipLibCheck` an `@types/node` selbst**, nicht an
+eigenem Code: TypeScript 5.9.3 (installiert, `^5.4.0` erlaubt es) und `@types/node@20.12.12`
+sind inkompatibel (`Buffer` vs. `SharedArrayBuffer`/`ArrayBuffer`-Generics). Der
+Haupt-`tsconfig.json` hat `skipLibCheck: true` und ist davon nicht betroffen; das
+freistehende `tsc`-Kommando aus dem Plan hatte das Flag nicht. Fix: `--skipLibCheck`
+sowie `--allowImportingTsExtensions` (wegen Punkt 1) ergänzt.
+
+**3. `parseDocumentMeta` (Aufgabe 6) traf eine falsche Formannahme.** Der reale Response
+von `/api/documents/{id}/` hat **kein** Top-Level-`checksum`-Feld mehr — stattdessen ein
+`versions`-Array (Dokument-Reprozessierung/-Historie), z. B.:
+
+```json
+"versions": [{"id":1,"checksum":"c2f157951458…","is_root":true,"added":"…","version_label":null}]
+```
+
+`parseDocumentMeta` liest die Prüfsumme jetzt aus der `is_root:true`-Version (Fallback:
+erster Eintrag, dann das alte Top-Level-Feld für ältere Instanzen). Ohne diesen Fix wäre
+`meta.checksum` immer leer gewesen und `needsRefresh` (Aufgabe 7) hätte — da leere
+Prüfsummen als "Cache gilt" behandelt werden — nie neu geladen, selbst wenn sich das
+Dokument in paperless änderte. Test ergänzt in `tests/core/paperless-api.test.ts`
+("liest die Pruefsumme aus dem versions-Array", "bevorzugt die Root-Version"), alte
+Tests mit flachem `checksum`-Feld bleiben als Fallback-Fall grün.
+
+**Konsequenz für Aufgabe 10:** keine — `render-core.ts` konsumiert `meta.checksum` bereits
+als fertigen String und kennt die interne Form nicht.
