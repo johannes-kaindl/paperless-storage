@@ -1,1 +1,1 @@
-export * from "../../src/vendor/kit-testing/obsidian-mock";
+export * from "../vendor/kit/obsidian-mock";
