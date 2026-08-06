@@ -1489,7 +1489,7 @@ Der zurückgegebene Child muss per `addChild()` registriert werden — das ist e
 `MarkdownRenderChild` als Parameter, weil eine freie Funktion `addChild()` nicht
 aufrufen kann.
 
-- [ ] **Schritt 1: `src/obsidian/render-core.ts` schreiben**
+- [x] **Schritt 1: `src/obsidian/render-core.ts` schreiben**
 
 ```typescript
 // Ein Renderkern, den Embed und (spaeter) FileView als duenne Adapter benutzen —
@@ -1644,7 +1644,7 @@ interface EmbedRegistry {
 }
 ```
 
-- [ ] **Schritt 2: `src/obsidian/embed.ts` schreiben**
+- [x] **Schritt 2: `src/obsidian/embed.ts` schreiben**
 
 ```typescript
 // `![[x.paperless]]`-Embeds ueber Obsidians embedRegistry.
@@ -1712,7 +1712,7 @@ export function registerPaperlessEmbed(deps: RenderDeps): (() => void) | null {
 }
 ```
 
-- [ ] **Schritt 3: `src/obsidian/settings-tab.ts` schreiben (minimal)**
+- [x] **Schritt 3: `src/obsidian/settings-tab.ts` schreiben (minimal)**
 
 Nur was Phase 1 zum Testen braucht. Cache-Ordner, Ausblenden und Dateiversion folgen in
 Phase 2.
@@ -1766,7 +1766,7 @@ export class PaperlessSettingTab extends PluginSettingTab {
 }
 ```
 
-- [ ] **Schritt 4: `src/obsidian/main.ts` ersetzen**
+- [x] **Schritt 4: `src/obsidian/main.ts` ersetzen**
 
 ```typescript
 import { getLanguage, Notice, Plugin } from "obsidian";
@@ -1820,7 +1820,7 @@ export default class PaperlessStoragePlugin extends Plugin {
 }
 ```
 
-- [ ] **Schritt 5: `styles.css` anlegen**
+- [x] **Schritt 5: `styles.css` anlegen**
 
 Nur Theme-Variablen, kein `!important` (UI-STANDARD §3, PROF-OBS-13).
 
@@ -1834,7 +1834,7 @@ Nur Theme-Variablen, kein `!important` (UI-STANDARD §3, PROF-OBS-13).
 }
 ```
 
-- [ ] **Schritt 6: Alle Gates laufen lassen**
+- [x] **Schritt 6: Alle Gates laufen lassen**
 
 ```bash
 npm run typecheck && npm test && npm run lint && npm run build
@@ -1842,7 +1842,7 @@ npm run typecheck && npm test && npm run lint && npm run build
 
 Erwartung: alle vier ohne Fehler.
 
-- [ ] **Schritt 7: Im echten Obsidian prüfen** *(die eigentliche Abnahme)*
+- [x] **Schritt 7: Im echten Obsidian prüfen** *(die eigentliche Abnahme)*
 
 ```bash
 cp main.js manifest.json styles.css "$OBSIDIAN_PLUGIN_DIR/paperless-storage/"
@@ -1863,14 +1863,14 @@ Dann im Testvault, in dieser Reihenfolge:
 8. Befehl „Clear document cache" ausführen → Ordner ist leer.
 9. Notiz schließen, Entwicklertools prüfen: keine Fehler, keine zurückbleibenden Elemente.
 
-- [ ] **Schritt 8: Abnahme protokollieren**
+- [x] **Schritt 8: Abnahme protokollieren**
 
 Die neun Prüfpunkte mit Befund und Datum in
 `docs/superpowers/specs/2026-08-06-spike-ergebnis.md` (Abschnitt „Abnahme Phase 1")
 festhalten. Ein grüner Testlauf ist kein Beleg für die Anzeige — die entsteht erst im
 echten Obsidian.
 
-- [ ] **Schritt 9: Commit**
+- [x] **Schritt 9: Commit**
 
 ```bash
 git add -A
