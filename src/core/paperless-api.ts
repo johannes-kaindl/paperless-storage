@@ -92,3 +92,27 @@ export function parseDocumentMeta(text: string): DocumentMeta {
     created: typeof obj["created"] === "string" ? obj["created"] : "",
   };
 }
+
+export interface DocumentSearchResult {
+  id: number;
+  title: string;
+}
+
+export function parseSearchResults(text: string): DocumentSearchResult[] {
+  const parsed = JSON.parse(text) as unknown;
+  if (typeof parsed !== "object" || parsed === null) {
+    throw new Error("Unexpected paperless response: not an object");
+  }
+  const results = (parsed as Record<string, unknown>)["results"];
+  if (!Array.isArray(results)) {
+    throw new Error("Unexpected paperless response: missing 'results'");
+  }
+  const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null;
+  return (results as unknown[])
+    .filter(isRecord)
+    .map((r) => ({
+      id: typeof r["id"] === "number" ? r["id"] : null,
+      title: typeof r["title"] === "string" ? r["title"] : "",
+    }))
+    .filter((r): r is DocumentSearchResult => r.id !== null);
+}

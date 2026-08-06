@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  documentMetaRequest, documentFileRequest, searchRequest, parseDocumentMeta,
+  documentMetaRequest, documentFileRequest, searchRequest, parseDocumentMeta, parseSearchResults,
 } from "../../src/core/paperless-api";
 
 const cfg = { serverUrl: "https://paperless.example.org", apiToken: "geheim" };
@@ -63,5 +63,32 @@ describe("parseDocumentMeta", () => {
     const meta = parseDocumentMeta('{"id":1}');
     expect(meta.title).toBe("");
     expect(meta.checksum).toBe("");
+  });
+});
+
+describe("parseSearchResults", () => {
+  const body = JSON.stringify({
+    count: 2,
+    results: [
+      { id: 1, title: "notes-to-media", content: "…", tags: [] },
+      { id: 7, title: "Mietvertrag 2024", content: "…", tags: [] },
+    ],
+  });
+
+  it("liest id und title aus jedem Treffer", () => {
+    expect(parseSearchResults(body)).toEqual([
+      { id: 1, title: "notes-to-media" },
+      { id: 7, title: "Mietvertrag 2024" },
+    ]);
+  });
+  it("liefert eine leere Liste ohne Treffer", () => {
+    expect(parseSearchResults(JSON.stringify({ count: 0, results: [] }))).toEqual([]);
+  });
+  it("wirft, wenn 'results' fehlt", () => {
+    expect(() => parseSearchResults(JSON.stringify({ count: 0 }))).toThrow();
+  });
+  it("ueberspringt Eintraege ohne numerische id", () => {
+    const bad = JSON.stringify({ results: [{ title: "kaputt" }, { id: 2, title: "ok" }] });
+    expect(parseSearchResults(bad)).toEqual([{ id: 2, title: "ok" }]);
   });
 });
