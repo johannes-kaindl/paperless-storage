@@ -347,7 +347,7 @@ anderen und nicht mittendrin.
 
 **Dateien:**
 - Ändern: `src/obsidian/main.ts` (temporär, wird in Aufgabe 10 ersetzt)
-- Anlegen: `docs/superpowers/specs/2026-08-05-spike-ergebnis.md`
+- Anlegen: `docs/superpowers/specs/2026-08-06-spike-ergebnis.md`
 
 - [ ] **Schritt 1: Testvault vorbereiten**
 
@@ -460,7 +460,7 @@ entscheidet `isDesktopOnly` im Manifest. Ist kein Gerät verfügbar, wird das au
 als „ungemessen" protokolliert und `isDesktopOnly: true` bleibt stehen — eine Vermutung
 wird nicht als Messung ausgegeben.
 
-- [ ] **Schritt 6: Ergebnis in `docs/superpowers/specs/2026-08-05-spike-ergebnis.md` festhalten**
+- [ ] **Schritt 6: Ergebnis in `docs/superpowers/specs/2026-08-06-spike-ergebnis.md` festhalten**
 
 Struktur: Frage · Vorgehen · Befund pro Weg (A/B/Mobile) mit Konsolenausgabe im Wortlaut ·
 Entscheidung · Datum. Ohne diese Datei ist der Spike wertlos, weil das Ergebnis in einer
@@ -1365,7 +1365,7 @@ danach korrigiert und Aufgabe 3 nachgezogen. **Der Befund gewinnt gegen die Anna
 
 - [ ] **Schritt 5: Ergebnis des Laufs festhalten**
 
-Datum und Befund in `docs/superpowers/specs/2026-08-05-spike-ergebnis.md` ergänzen
+Datum und Befund in `docs/superpowers/specs/2026-08-06-spike-ergebnis.md` ergänzen
 (Abschnitt „Lab-Lauf"). Ein behaupteter Lauf ist kein geführter Nachweis.
 
 - [ ] **Schritt 6: Commit**
@@ -1478,11 +1478,16 @@ git commit -m "feat: Cache-Speicher im Vault"
 - Konsumiert: alles aus den Aufgaben 3–9
 - Liefert: ein Plugin, bei dem `![[X.paperless]]` das PDF anzeigt
 
-**Vor Beginn:** Das Ergebnis von Aufgabe 2 bestimmt, welchen Weg `render-core.ts` nimmt.
-Unten steht Weg A (Obsidians PDF-Creator direkt aufrufen). Trug im Spike nur Weg B, wird
-stattdessen `MarkdownRenderer.render` verwendet — und die dabei erzeugte `Component` muss
-als Kind des `MarkdownRenderChild` registriert werden, sonst leakt sie beim Schließen der
-Notiz.
+**Vor Beginn — Aufgabe 2 ist gemessen (2026-08-06):** Weg A trägt, dieser Plan gilt.
+Befunde in `docs/superpowers/specs/2026-08-06-spike-ergebnis.md`.
+
+⚠️ **Der unten stehende `showPdf()` ist so nicht lauffähig** — gemessen, nicht vermutet:
+`creator(...)` + `child.loadFile()` läuft ohne Wurf durch und rendert **nichts**
+(`innerHTMLLength: 0`), weil Obsidians PDF-Viewer sein DOM erst in `onload()` aufbaut.
+Der zurückgegebene Child muss per `addChild()` registriert werden — das ist es, was
+`load()` auslöst. Der Code unten ist entsprechend korrigiert: `showPdf()` bekommt den
+`MarkdownRenderChild` als Parameter, weil eine freie Funktion `addChild()` nicht
+aufrufen kann.
 
 - [ ] **Schritt 1: `src/obsidian/render-core.ts` schreiben**
 
@@ -1491,7 +1496,7 @@ Notiz.
 // Muster „Adapter um einen Kern" aus 3d-codeblocks. Fehlerbehandlung, Ladezustand und
 // Cache-Logik liegen dadurch an genau einer Stelle.
 
-import { TFile, type App } from "obsidian";
+import { Component, TFile, type App } from "obsidian";
 import { parseStub, StubParseError } from "../core/stub";
 import { cachePath, needsRefresh } from "../core/cache-policy";
 import { documentFileRequest, documentMetaRequest, parseDocumentMeta } from "../core/paperless-api";
@@ -1514,6 +1519,7 @@ export async function renderStub(
   deps: RenderDeps,
   stubFile: TFile,
   containerEl: HTMLElement,
+  parent: Component,
 ): Promise<void> {
   containerEl.empty();
   const settings = deps.settings();
@@ -1592,7 +1598,7 @@ export async function renderStub(
   }
 
   loading.remove();
-  showPdf(deps.app, containerEl, cached);
+  showPdf(deps.app, containerEl, cached, parent);
 }
 
 function message(containerEl: HTMLElement, text: string): HTMLElement {
@@ -1609,7 +1615,12 @@ function showUncachedNotice(containerEl: HTMLElement, error: unknown): void {
  * aufrufen. Inoffizielle API — mit Feature-Detection, damit ihr Verschwinden nur die
  * Anzeige kostet und nicht das Plugin.
  */
-function showPdf(app: App, containerEl: HTMLElement, file: TFile): void {
+function showPdf(
+  app: App,
+  containerEl: HTMLElement,
+  file: TFile,
+  parent: Component,
+): void {
   const registry = (app as unknown as { embedRegistry?: EmbedRegistry }).embedRegistry;
   const creator = registry?.embedByExtension?.["pdf"];
   if (!creator) {
@@ -1617,6 +1628,9 @@ function showPdf(app: App, containerEl: HTMLElement, file: TFile): void {
     return;
   }
   const child = creator({ app, containerEl, linktext: file.path, sourcePath: file.path }, file);
+  // Ohne addChild() laeuft loadFile() durch und rendert NICHTS: der Viewer baut sein DOM
+  // erst in onload(), und geladen wird eine Component nur als Kind (gemessen 2026-08-06).
+  parent.addChild(child as unknown as Component);
   child.loadFile();
 }
 
@@ -1675,7 +1689,7 @@ class PaperlessEmbed extends MarkdownRenderChild implements EmbedComponentLike {
   }
 
   loadFile(): void {
-    void renderStub(this.deps, this.file, this.containerEl);
+    void renderStub(this.deps, this.file, this.containerEl, this);
   }
 }
 
@@ -1852,7 +1866,7 @@ Dann im Testvault, in dieser Reihenfolge:
 - [ ] **Schritt 8: Abnahme protokollieren**
 
 Die neun Prüfpunkte mit Befund und Datum in
-`docs/superpowers/specs/2026-08-05-spike-ergebnis.md` (Abschnitt „Abnahme Phase 1")
+`docs/superpowers/specs/2026-08-06-spike-ergebnis.md` (Abschnitt „Abnahme Phase 1")
 festhalten. Ein grüner Testlauf ist kein Beleg für die Anzeige — die entsteht erst im
 echten Obsidian.
 
