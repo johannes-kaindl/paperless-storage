@@ -32,8 +32,27 @@ export async function renderStub(
 
   // Dynamische Zuweisung aus einer Variablen — vom obsidianmd-Lint ausdruecklich erlaubt
   // (nur STATISCHE style-Literale sind verboten, PROF-OBS-13).
+  //
+  // Gemessen (2026-08-06, Abnahme Phase 2): Obsidians eigener PDF-Viewer setzt NACH dem
+  // Laden seine eigene, inhaltsabhaengige Hoehe auf genau dieses Element — und zwar in
+  // ZWEI Schueben (erste, grobe Layout-Passe nach ~300-600ms, zweite nach vollstaendiger
+  // Seitenberechnung ~1s spaeter). Ein einmalig abgemeldeter MutationObserver faengt nur
+  // die erste ab und laesst die zweite durch. Der Observer bleibt deshalb fuer die ganze
+  // Lebensdauer des Embeds aktiv (Abmeldung erst beim Unload ueber parent.register) und
+  // korrigiert jede Abweichung — das eigene Zuruecksetzen loest zwar selbst wieder eine
+  // Mutation aus, die dann aber bereits targetHeight sieht und nichts mehr tut, also keine
+  // Endlosschleife. `!important` waere die naheliegende Alternative, ist aber durch
+  // PROF-OBS-13 verboten.
   if (settings.embedHeight !== null) {
-    containerEl.style.height = `${settings.embedHeight}px`;
+    const targetHeight = `${settings.embedHeight}px`;
+    containerEl.style.height = targetHeight;
+    const observer = new MutationObserver(() => {
+      if (containerEl.style.height !== targetHeight) {
+        containerEl.style.height = targetHeight;
+      }
+    });
+    observer.observe(containerEl, { attributes: true, attributeFilter: ["style"] });
+    parent.register(() => observer.disconnect());
   }
 
   if (!isConfigured(settings)) {
