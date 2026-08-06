@@ -1,6 +1,6 @@
 {
   "name": "paperless-storage",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Embed documents from your paperless-ngx instance directly in your notes.",
   "keywords": ["obsidian", "obsidian-plugin", "paperless", "paperless-ngx", "pdf", "documents"],
   "license": "AGPL-3.0-or-later",

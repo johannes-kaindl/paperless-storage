@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.2] — 2026-08-06
+
 ### Fixed
 
 - Settings tab now implements the declarative settings API, so its settings appear in

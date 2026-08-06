@@ -1,7 +1,7 @@
 {
   "id": "paperless-storage",
   "name": "Paperless Storage",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "minAppVersion": "1.8.7",
   "description": "Embed documents from your paperless-ngx instance directly in your notes.",
   "author": "Johannes Kaindl",
