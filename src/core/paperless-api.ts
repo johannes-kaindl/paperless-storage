@@ -61,11 +61,14 @@ export function searchRequest(cfg: ApiConfig, query: string): RequestSpec {
  * wird als Fallback weiter gelesen, falls eine aeltere Instanz es doch liefert.
  */
 function extractChecksum(obj: Record<string, unknown>): string {
-  const versions = obj["versions"];
-  if (Array.isArray(versions)) {
+  const raw = obj["versions"];
+  if (Array.isArray(raw)) {
+    // `Array.isArray` narrows to `any[]` regardless of the source type — re-widen to
+    // `unknown[]` so the eslint unsafe-any rules keep checking the element accesses below.
+    const versions: unknown[] = raw as unknown[];
     const isVersion = (v: unknown): v is Record<string, unknown> =>
       typeof v === "object" && v !== null;
-    const root = versions.find((v) => isVersion(v) && v["is_root"] === true);
+    const root = versions.find((v): v is Record<string, unknown> => isVersion(v) && v["is_root"] === true);
     const chosen = root ?? (isVersion(versions[0]) ? versions[0] : undefined);
     if (chosen && typeof chosen["checksum"] === "string") return chosen["checksum"];
   }
