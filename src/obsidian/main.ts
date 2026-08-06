@@ -10,6 +10,7 @@ import { pickLang, setLang, t } from "../core/i18n";
 import { obsidianTransport } from "./http";
 import { CacheStore } from "./cache-store";
 import { registerPaperlessEmbed } from "./embed";
+import { PaperlessFileView, VIEW_TYPE_PAPERLESS } from "./file-view";
 import { PaperlessSettingTab } from "./settings-tab";
 import { applyCacheFolderVisibility, removeCacheFolderVisibility } from "./hide-folder";
 import { runTitleSync } from "./title-sync-runner";
@@ -42,6 +43,13 @@ export default class PaperlessStoragePlugin extends Plugin {
       this.register(unregister);
     } else {
       new Notice("Paperless storage: embeds unavailable in this Obsidian version.");
+    }
+
+    this.registerView(VIEW_TYPE_PAPERLESS, (leaf) => new PaperlessFileView(leaf, deps));
+    try {
+      this.registerExtensions(["paperless"], VIEW_TYPE_PAPERLESS);
+    } catch (e) {
+      console.warn("[paperless-storage] could not claim '.paperless' as a file view:", e);
     }
 
     this.addCommand({
