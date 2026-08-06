@@ -1,6 +1,6 @@
 import { App, PluginSettingTab, Setting, type Plugin } from "obsidian";
 import type { FileVersion, PaperlessSettings } from "../core/settings";
-import { FolderSuggest } from "./folder-suggest";
+import { FolderSuggest } from "../vendor/kit-obsidian/folder-suggest";
 
 export interface SettingsHost extends Plugin {
   settings: PaperlessSettings;
