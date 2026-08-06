@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Settings tab now implements the declarative settings API, so its settings appear in
+  Obsidian's built-in settings search on 1.13.0+.
+- Clearing the document cache now respects your file-deletion preference (moves cached
+  files to trash) instead of deleting them permanently.
+
 ## [0.1.1] — 2026-08-06
 
 ### Fixed
