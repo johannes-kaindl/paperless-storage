@@ -7,7 +7,7 @@ KIT=../obsidian-kit
 VER=$(node -p "require('$KIT/package.json').version")
 SHA=$(git -C "$KIT" rev-parse --short HEAD)
 
-mkdir -p src/vendor/kit src/vendor/kit-testing
+mkdir -p src/vendor/kit src/vendor/kit-testing src/obsidian
 
 stamp() { # stamp <vendored-file> <kit-relative-path>
   header="// vendored from obsidian-kit@$VER, $2 — do not hand-edit; re-vendor via tools/sync-kit.sh"
@@ -20,6 +20,12 @@ for m in i18n; do
   stamp "src/vendor/kit/$m.ts" "src/pure/$m.ts"
   echo "vendored obsidian-kit@$VER/pure/$m.ts -> src/vendor/kit/$m.ts"
 done
+
+# obsidian-gekoppelte Kit-Module liegen unter src/obsidian/, nicht src/pure/ —
+# eigener Kopierblock je Modul, wie beim Test-Mock unten.
+cp "$KIT/src/obsidian/folder-suggest.ts" src/obsidian/folder-suggest.ts
+stamp src/obsidian/folder-suggest.ts "src/obsidian/folder-suggest.ts"
+echo "vendored obsidian-kit@$VER/obsidian/folder-suggest.ts -> src/obsidian/"
 
 # Der Test-Mock gehoert in denselben Sync: ein per Hand kopierter Snapshot bekommt
 # keinen Header und wird von Kit-Updates nicht erfasst — er driftet still.
