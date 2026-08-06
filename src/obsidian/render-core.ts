@@ -30,6 +30,12 @@ export async function renderStub(
   containerEl.empty();
   const settings = deps.settings();
 
+  // Dynamische Zuweisung aus einer Variablen — vom obsidianmd-Lint ausdruecklich erlaubt
+  // (nur STATISCHE style-Literale sind verboten, PROF-OBS-13).
+  if (settings.embedHeight !== null) {
+    containerEl.style.height = `${settings.embedHeight}px`;
+  }
+
   if (!isConfigured(settings)) {
     message(containerEl, t("notConfigured"));
     return;
