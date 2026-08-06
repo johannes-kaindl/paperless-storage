@@ -10,6 +10,8 @@ export interface PaperlessSettings {
   cacheFolder: string;
   hideCacheFolder: boolean;
   fileVersion: FileVersion;
+  /** `null` = Obsidian-Default-Hoehe fuer Embeds, sonst Pixelwert. */
+  embedHeight: number | null;
 }
 
 export const DEFAULT_SETTINGS: PaperlessSettings = {
@@ -18,6 +20,7 @@ export const DEFAULT_SETTINGS: PaperlessSettings = {
   cacheFolder: "_paperless-storage/",
   hideCacheFolder: true,
   fileVersion: "archive",
+  embedHeight: null,
 };
 
 export function mergeSettings(raw: unknown): PaperlessSettings {

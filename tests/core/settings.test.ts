@@ -17,6 +17,9 @@ describe("DEFAULT_SETTINGS", () => {
   it("nutzt standardmaeszig das Archiv-PDF", () => {
     expect(DEFAULT_SETTINGS.fileVersion).toBe("archive");
   });
+  it("laesst die Embed-Hoehe standardmaeszig auf Obsidian-Default (null)", () => {
+    expect(DEFAULT_SETTINGS.embedHeight).toBeNull();
+  });
 });
 
 describe("mergeSettings", () => {
@@ -34,6 +37,9 @@ describe("mergeSettings", () => {
     const a = mergeSettings({});
     a.cacheFolder = "geaendert/";
     expect(mergeSettings({}).cacheFolder).toBe("_paperless-storage/");
+  });
+  it("uebernimmt eine gesetzte Embed-Hoehe", () => {
+    expect(mergeSettings({ embedHeight: 500 }).embedHeight).toBe(500);
   });
 });
 
