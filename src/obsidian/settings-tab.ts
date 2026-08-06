@@ -20,10 +20,10 @@ import {
   PluginSettingTab,
   Setting,
   type Plugin,
-  type SettingControl,
   type SettingDefinitionItem,
 } from "obsidian";
 import type { PaperlessSettings } from "../core/settings";
+import { renderSettingDefinitions } from "../vendor/kit-obsidian/settings_walker";
 import { FolderSuggest } from "../vendor/kit-obsidian/folder-suggest";
 
 export interface SettingsHost extends Plugin {
@@ -32,14 +32,6 @@ export interface SettingsHost extends Plugin {
   /** Wendet den aktuellen hideCacheFolder-Zustand sofort an (kein Neustart nötig). */
   applyCacheFolderVisibility(): void;
 }
-
-/** Lokale, absichtlich lockere Signatur fuer den Fallback-Aufruf einer render-Hatch —
- *  `SettingDefinitionRender.render` verlangt offiziell ein zweites `SettingGroup`-Argument,
- *  das im klassischen display()-Pfad keine Entsprechung hat. Eine Hatch, die nur den
- *  ersten Parameter deklariert, ist trotzdem zuweisungskompatibel (JS ignoriert
- *  ueberzaehlige Argumente); nur der direkte Aufruf durch `def.render(setting)` braucht
- *  hier den laxeren lokalen Typ, sonst verlangt TS zwei Argumente. */
-type RenderHatch = (setting: Setting) => void;
 
 export class PaperlessSettingTab extends PluginSettingTab {
   constructor(
@@ -143,50 +135,16 @@ export class PaperlessSettingTab extends PluginSettingTab {
   }
 
   // ── Imperativer Fallback (Obsidian < 1.13) ───────────────────────────────
+  private cleanupPrevious: () => void = () => {};
+
   display(): void {
+    this.cleanupPrevious();
     this.containerEl.empty();
-    for (const item of this.getSettingDefinitions()) {
-      this.renderDefinitionItem(this.containerEl, item);
-    }
-  }
-
-  private renderDefinitionItem(containerEl: HTMLElement, item: SettingDefinitionItem): void {
-    const def = item as { name?: string; desc?: string; control?: SettingControl; render?: RenderHatch };
-    const setting = new Setting(containerEl);
-    if (def.name) setting.setName(def.name);
-    if (typeof def.desc === "string") setting.setDesc(def.desc);
-    if (def.render) {
-      def.render(setting);
-      return;
-    }
-    if (def.control) this.renderControl(setting, def.control);
-  }
-
-  private renderControl(setting: Setting, control: SettingControl): void {
-    const current = this.getControlValue(control.key);
-    const save = (value: unknown): void => {
-      void this.setControlValue(control.key, value);
-    };
-
-    switch (control.type) {
-      case "toggle":
-        setting.addToggle((toggle) => toggle.setValue(current as boolean).onChange(save));
-        break;
-      case "dropdown":
-        setting.addDropdown((dropdown) => {
-          for (const [key, label] of Object.entries(control.options)) dropdown.addOption(key, label);
-          dropdown.setValue(String(current)).onChange(save);
-        });
-        break;
-      case "text":
-      default:
-        setting.addText((text) =>
-          text
-            .setPlaceholder((control as { placeholder?: string }).placeholder ?? "")
-            .setValue(String(current))
-            .onChange(save),
-        );
-        break;
-    }
+    this.cleanupPrevious = renderSettingDefinitions(
+      this.containerEl,
+      this.getSettingDefinitions(),
+      this,
+      this.app,
+    );
   }
 }
