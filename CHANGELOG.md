@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Moved the vendored test-only Obsidian mock out of `src/` (Community Store review
+  scans every `.ts` file under `src/` regardless of local lint ignores, and flagged the
+  permissive mock's `any` types as dozens of warnings — a "Caution" rating despite a
+  clean local lint).
+
 ## [0.1.0] — 2026-08-06
 
 ### Added
