@@ -12,7 +12,10 @@
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "lab": "node --experimental-transform-types scripts/paperless-lab.ts",
-    "typecheck:scripts": "tsc --noEmit --skipLibCheck --allowImportingTsExtensions --moduleResolution bundler --target ES2022 --module ESNext --strict scripts/paperless-lab.ts"
+    "typecheck:scripts": "tsc -p tsconfig.scripts.json",
+    "deploy": "npm run build && cp main.js manifest.json styles.css \"${OBSIDIAN_PLUGIN_DIR:?set OBSIDIAN_PLUGIN_DIR}\"/",
+    "smoke:gui": "esbuild scripts/gui-smoke.ts --bundle --platform=node --format=esm --outfile=.gui-smoke.mjs --log-level=warning && node .gui-smoke.mjs",
+    "gate": "npm run lint && npm run typecheck && npm run typecheck:scripts && npm test && npm run build"
   },
   "devDependencies": {
     "esbuild": "^0.21.0",
