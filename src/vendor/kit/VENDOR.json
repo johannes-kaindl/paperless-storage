@@ -1,0 +1,7 @@
+{
+  "source": "obsidian-kit",
+  "version": "0.23.0",
+  "sha": "e650ede",
+  "vendored": "i18n.ts, ../kit-testing/obsidian-mock.ts",
+  "note": "Verbatim snapshot. Never hand-edit. Re-vendor via tools/sync-kit.sh. endpoint_config bewusst NICHT vendored: sein authHeaders() erzeugt 'Bearer', paperless braucht 'Token'."
+}
