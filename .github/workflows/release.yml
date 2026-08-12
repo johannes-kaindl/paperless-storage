@@ -57,7 +57,15 @@ jobs:
             exit 1
           fi
 
+      # Build-Provenance gibt es bei GitHub NICHT fuer private Repos eines
+      # Nutzer-Accounts ("Feature not available for user-owned private
+      # repositories"). Ohne diese Bedingung bricht der Schritt ab, BEVOR das
+      # Release entsteht — der Tag steht dann auf beiden Forgen, das Release
+      # fehlt, und `release.mjs` hat laengst "veroeffentlicht" gemeldet.
+      # Gemessen 2026-08-12 an wikijs-maintainer 0.1.0. Wird das Repo spaeter
+      # oeffentlich, greift die Attestation von selbst.
       - name: Attest build provenance
+        if: ${{ !github.event.repository.private }}
         uses: actions/attest-build-provenance@v4
         with:
           subject-path: |

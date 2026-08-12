@@ -10,7 +10,7 @@
     "dev": "node esbuild.config.mjs",
     "check:pure": "node scripts/check-pure.mjs",
     "test": "npm run check:pure && vitest run",
-    "lint": "eslint src",
+    "lint": "node scripts/check-no-inline-disables.mjs && eslint src --max-warnings 0",
     "typecheck": "tsc --noEmit",
     "lab": "node --experimental-transform-types scripts/paperless-lab.ts",
     "typecheck:scripts": "tsc -p tsconfig.scripts.json",
