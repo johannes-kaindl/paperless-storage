@@ -38,6 +38,11 @@ const PLUGIN_ID = "paperless-storage";
 /** Werden im Vault angelegt und am Ende wieder entfernt (außer mit `--keep`). */
 const SMOKE_NOTE = "_pls-gui-smoke.md";
 const SMOKE_STUB = "_pls-gui-smoke.paperless";
+/** Eigener Cache-Ordner nur fuer den Papierkorb-Check (8.): der Befehl leert den GANZEN
+ *  Cache-Ordner. Zeigte der Check auf den echten, raeumte ein Smoke-Lauf in einem
+ *  produktiven Vault den kompletten Dokument-Cache ab. */
+const SMOKE_CACHE_FOLDER = "_pls-gui-smoke-cache";
+const SMOKE_CACHE_FILE = `${SMOKE_CACHE_FOLDER}/gui-smoke.pdf`;
 
 // --- CDP-Minimalbrücke ------------------------------------------------------
 // Node ≥21 bringt `WebSocket` global mit — keine Dependency nötig.
@@ -202,6 +207,7 @@ async function main(): Promise<void> {
   // zurueckschreiben kann — sonst bliebe der Vault im Smoke-Zustand stehen.
   let previousHideCacheFolder: boolean | null = null;
   let previousEmbedHeight: number | null | "unset" = "unset";
+  let previousCacheFolder: string | null = null;
 
   try {
     // Ohne Fokus drosselt Chromium den Renderer (gemessen 2026-08-06 im Spike: DOM blieb
@@ -215,6 +221,27 @@ async function main(): Promise<void> {
       } catch {
         console.log("  (Hinweis: `osascript activate` schlug fehl — Fenster ggf. von Hand nach vorn holen)");
       }
+    }
+
+    // Der Kopfkommentar warnt seit dem Spike vor der Drosselung — durchgesetzt hat sie
+    // niemand. Das Ergebnis waren Laeufe, in denen 3./4. rot meldeten, waehrend am Code
+    // nichts fehlte: das Fenster war schlicht verdeckt (gemessen 2026-08-14 —
+    // `document.visibilityState === "hidden"`, waehrend `Page.bringToFront` und
+    // `osascript activate` beide meldeten, sie haetten funktioniert). Der Renderer selbst
+    // ist die einzige verlaessliche Quelle dafuer, und ein Phantom-Rot ist teurer als ein
+    // Abbruch mit Ansage. Fokus ist NICHT gefordert — Sichtbarkeit genuegt.
+    let visibility = await cdp.evaluate<string>(`return document.visibilityState;`);
+    if (visibility === "hidden") {
+      await cdp.send("Page.bringToFront");
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      visibility = await cdp.evaluate<string>(`return document.visibilityState;`);
+    }
+    if (visibility === "hidden") {
+      throw new Error(
+        "Das Obsidian-Fenster ist verdeckt oder minimiert (document.visibilityState=hidden). " +
+          "Chromium drosselt dann das Rendering — der Lauf wuerde ein Phantom messen. " +
+          "Fenster sichtbar nach vorn holen und neu starten.",
+      );
     }
 
     const vaultName = await cdp.evaluate<string>(`return window.app?.appId ? app.vault.getName() : "";`);
@@ -390,9 +417,173 @@ async function main(): Promise<void> {
       fileViewLoaded === true,
       fileViewLoaded ? "" : fileViewDiag,
     );
+
+    // --- 6./7. Settings-Tab zeichnet seine Zeilen wirklich -------------------
+    // Regressions-Gegenstand von d182c67 (0.1.2): der Tab definiert seine Zeilen
+    // deklarativ (`getSettingDefinitions`) und zeichnet DIESELBE Struktur im
+    // `display()`-Fallback nach. Welchen der beiden Pfade der Host nimmt, entscheidet
+    // dessen Version — die vitest-Tests sehen weder den echten Host noch die echte
+    // `Setting`-API und koennen deshalb nur die Definitionsliste pruefen, nicht das
+    // Ergebnis. Hier wird das Ergebnis geprueft: stehen die Zeilen im DOM?
+    interface SettingsProbe {
+      ok: boolean;
+      reason?: string;
+      displayCalled?: boolean;
+      expected?: string[];
+      missing?: string[];
+      tokenInputType?: string | null;
+    }
+    const settings = await cdp.evaluate<SettingsProbe>(`
+      const id = ${JSON.stringify(PLUGIN_ID)};
+      const tabs = app.setting?.pluginTabs ?? [];
+      const tab = tabs.find((t) => t.id === id || t.plugin?.manifest?.id === id);
+      if (!tab) return { ok: false, reason: "Settings-Tab steht nicht in app.setting.pluginTabs" };
+      if (typeof app.setting.open !== "function" || typeof app.setting.openTabById !== "function") {
+        return { ok: false, reason: "app.setting.open/openTabById fehlt in dieser Obsidian-Version" };
+      }
+      // Faellt der Tab hinter d182c67 zurueck (nur display(), keine Definitionsliste) —
+      // dann ist das ein roter Pruefpunkt, kein Abbruch. Sonst risse die Gegenprobe
+      // gegen eine aeltere Plugin-Version den ganzen Smoke mit.
+      if (typeof tab.getSettingDefinitions !== "function") {
+        return { ok: false, reason: "Tab hat kein getSettingDefinitions() — deklarative Settings fehlen" };
+      }
+      const expected = tab.getSettingDefinitions().map((d) => d.name);
+
+      // Verraet, welchen Pfad der Host gewaehlt hat: ab 1.13 ruft er display() nicht mehr.
+      let displayCalled = false;
+      const originalDisplay = tab.display;
+      tab.display = function (...args) { displayCalled = true; return originalDisplay.apply(this, args); };
+
+      // NICHT app.setting.containerEl: ab 1.13 zeichnet der Host die Einstellungen in ein
+      // ausgelagertes FENSTER (eigenes Dokument), waehrend containerEl der leere
+      // modal-container des Hauptfensters bleibt — gemessen 2026-08-14, derselbe
+      // Fallstrick, den main.ts bei applyCacheFolderVisibility schon traegt. Der Tab
+      // zeigt in beiden Welten auf seinen eigenen Inhalt.
+      const scope = () => tab.containerEl ?? app.setting.containerEl;
+      let names = [];
+      try {
+        app.setting.open();
+        app.setting.openTabById(id);
+        const deadline = Date.now() + 8000;
+        while (Date.now() < deadline) {
+          names = Array.from(scope().querySelectorAll(".setting-item-name"))
+            .map((el) => el.textContent.trim());
+          if (expected.every((n) => names.includes(n))) break;
+          await new Promise((r) => setTimeout(r, 100));
+        }
+      } finally {
+        tab.display = originalDisplay;
+      }
+
+      const tokenItem = Array.from(scope().querySelectorAll(".setting-item")).find(
+        (el) => el.querySelector(".setting-item-name")?.textContent.trim() === "API token",
+      );
+      const tokenInput = tokenItem?.querySelector("input");
+      const type = tokenInput ? tokenInput.type : null;
+      app.setting.close();
+      return {
+        ok: true,
+        displayCalled,
+        expected,
+        missing: expected.filter((n) => !names.includes(n)),
+        tokenInputType: type,
+      };
+    `);
+    const settingsPath = settings.displayCalled
+      ? "display()-Fallback"
+      : "deklarativ (getSettingDefinitions)";
+    record(
+      "6. Settings-Tab zeichnet alle definierten Zeilen",
+      settings.ok === true && settings.missing?.length === 0,
+      settings.ok
+        ? `Pfad: ${settingsPath} · ${settings.expected?.length ?? 0} Zeilen` +
+            (settings.missing?.length ? ` · fehlt: ${settings.missing.join(", ")}` : "")
+        : (settings.reason ?? "unbekannt"),
+    );
+    record(
+      "7. API-Token-Zeile ist maskiert (Render-Hatch greift in beiden Pfaden)",
+      settings.tokenInputType === "password",
+      settings.ok ? `input.type: ${settings.tokenInputType ?? "(kein Eingabefeld)"}` : "Tab nicht geöffnet",
+    );
+
+    // --- 8. Cache-Leeren geht in den Papierkorb, nicht in die endgueltige Loeschung ---
+    // Regressions-Gegenstand von aab247a (0.1.2): `fileManager.trashFile` respektiert die
+    // Papierkorb-Einstellung des Nutzers, `vault.delete` ignoriert sie. Welche der beiden
+    // aufgerufen wird, ist am Ergebnis nicht ablesbar — beide lassen die Datei
+    // verschwinden. Der Check misst deshalb den Aufruf selbst.
+    previousCacheFolder = await cdp.evaluate<string>(`
+      return app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}].settings.cacheFolder;
+    `);
+    interface TrashProbe {
+      ok: boolean;
+      reason?: string;
+      trashed?: string[];
+      deleted?: string[];
+      stillThere?: boolean;
+    }
+    const trash = await cdp.evaluate<TrashProbe>(`
+      const p = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}];
+      p.settings.cacheFolder = ${JSON.stringify(SMOKE_CACHE_FOLDER)};
+      await p.saveSettings();
+      p.applyCacheFolderVisibility();
+
+      const folder = ${JSON.stringify(SMOKE_CACHE_FOLDER)};
+      if (!app.vault.getAbstractFileByPath(folder)) await app.vault.createFolder(folder);
+      const victimPath = ${JSON.stringify(SMOKE_CACHE_FILE)};
+      const bytes = new TextEncoder().encode("%PDF-1.4\\n%%EOF\\n").buffer;
+      const existing = app.vault.getAbstractFileByPath(victimPath);
+      if (existing) await app.vault.modifyBinary(existing, bytes);
+      else await app.vault.createBinary(victimPath, bytes);
+
+      const trashed = [];
+      const deleted = [];
+      const fm = app.fileManager;
+      const originalTrash = fm.trashFile;
+      const originalDelete = app.vault.delete;
+      fm.trashFile = async function (file) { trashed.push(file.path); return await originalTrash.call(fm, file); };
+      app.vault.delete = async function (file, force) { deleted.push(file.path); return await originalDelete.call(app.vault, file, force); };
+      try {
+        // Der Befehls-Callback ist async und wird vom Host nicht awaited — gewartet wird
+        // deshalb darauf, dass die Datei verschwindet, nicht auf den Rueckgabewert.
+        const ran = app.commands.executeCommandById(${JSON.stringify(PLUGIN_ID)} + ":clear-cache");
+        if (!ran) return { ok: false, reason: "Befehl clear-cache ist nicht registriert" };
+        const deadline = Date.now() + 8000;
+        while (Date.now() < deadline && app.vault.getAbstractFileByPath(victimPath)) {
+          await new Promise((r) => setTimeout(r, 100));
+        }
+      } finally {
+        fm.trashFile = originalTrash;
+        app.vault.delete = originalDelete;
+      }
+      return { ok: true, trashed, deleted, stillThere: !!app.vault.getAbstractFileByPath(victimPath) };
+    `);
+    // `deleted` ist bewusst KEIN Fehlschlag-Kriterium: steht die Papierkorb-Einstellung des
+    // Vaults auf "endgueltig loeschen", reicht `trashFile` intern an `vault.delete` durch —
+    // ein Fehlschlag daran haenge an der Nutzer-Konfiguration, nicht am Code.
+    record(
+      "8. Cache-Leeren ruft fileManager.trashFile (Papierkorb-Einstellung des Nutzers)",
+      trash.ok === true && trash.trashed?.includes(SMOKE_CACHE_FILE) === true && trash.stillThere === false,
+      trash.ok
+        ? `trashFile: ${trash.trashed?.length ?? 0}× · vault.delete: ${trash.deleted?.length ?? 0}×` +
+            (trash.stillThere ? " · Datei liegt noch da" : "") +
+            (trash.deleted?.length ? " (durchgereicht — Vault löscht endgültig)" : "")
+        : (trash.reason ?? "unbekannt"),
+    );
   } finally {
     // Aufräumen darf nie am Ergebnis hängen: auch ein abgebrochener Lauf gibt den Vault
     // so zurück, wie er ihn vorgefunden hat.
+    // Vor dem hideCacheFolder-Block: dessen applyCacheFolderVisibility() soll die Regel
+    // schon fuer den ECHTEN Ordner schreiben, nicht fuer den Smoke-Ordner.
+    if (previousCacheFolder !== null) {
+      await cdp
+        .evaluate(`
+          const p = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}];
+          p.settings.cacheFolder = ${JSON.stringify(previousCacheFolder)};
+          await p.saveSettings();
+          return true;
+        `)
+        .catch(() => undefined);
+    }
     if (previousHideCacheFolder !== null) {
       await cdp
         .evaluate(`
@@ -423,6 +614,8 @@ async function main(): Promise<void> {
           if (note) await app.vault.delete(note);
           const stub = app.vault.getAbstractFileByPath(stubPath);
           if (stub) await app.vault.delete(stub);
+          const smokeCache = app.vault.getAbstractFileByPath(${JSON.stringify(SMOKE_CACHE_FOLDER)});
+          if (smokeCache) await app.vault.delete(smokeCache, true);
           return true;
         `)
         .catch(() => undefined);
