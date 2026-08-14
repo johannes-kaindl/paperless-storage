@@ -6,6 +6,8 @@ directly in your notes — read in the flow of your writing, not through a link.
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 ![Platform](https://img.shields.io/badge/platform-Obsidian%201.8.7%2B%20·%20desktop%20only-7c3aed)
 
+*Auch auf Deutsch verfügbar: [`README.de.md`](README.de.md).*
+
 paperless-ngx can generate public share links for a document, but a link like that has
 no login — anyone who has the URL has the document, and it would sit in plain text in
 your note (and in your vault's git history). For tax records, contracts, or medical
