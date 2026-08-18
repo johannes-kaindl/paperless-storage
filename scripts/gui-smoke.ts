@@ -1,7 +1,6 @@
 /**
  * GUI-Smoke-Treiber — fährt eine Checkliste gegen ein **laufendes** Obsidian statt von
- * Hand. Vendored aus `3d-codeblocks/scripts/gui-smoke.ts` (CDP-Brücke unverändert
- * übernommen, Skill `gui-smoke-setup`).
+ * Hand.
  *
  * Warum getrackt (CORE-TEST-02 b): ein Treiber, der nur im Session-Scratchpad liegt,
  * existiert genau einmal und ist beim nächsten Mal wieder Handarbeit.
@@ -10,21 +9,25 @@
  * `embedRegistry`-Verhalten, Obsidians eigenen PDF-Viewer, echte Theme-/Explorer-DOM-
  * Mutationen — die Naht zum Host.
  *
- * ## Voraussetzung
+ * ## Vault
  *
- * Obsidian muss mit offenem Debug-Port laufen (der einzige Handgriff, der Handarbeit
- * bleibt — die App muss dafür neu gestartet werden):
+ * Läuft seit 2026-08-18 gegen einen eigenen, getrackten Fixture-Vault
+ * (`docs/images/fixture/`) statt gegen einen geteilten Arbeits-Vault — der teilt sich
+ * mehrere gleichzeitig offene Fenster, und Chromium drosselt jedes nicht fokussierte
+ * (CORE-TEST-02). Derselbe Fixture-Vault dient später auch `scripts/shots.ts`
+ * (Skill `readme-shots`).
  *
  * ```bash
+ * export STAGING_VAULTS_DIR=/Users/Shared/60_StagingVaults   # einmalig
+ * export PAPERLESS_URL=https://paperless.jkaindl.de           # Test-Server
+ * export PAPERLESS_TOKEN=…
+ * npm run build
+ * npm run smoke:gui -- --setup      # baut den Vault, danach Obsidian NEU STARTEN
  * osascript -e 'quit app "Obsidian"'
  * open -a Obsidian --args --remote-debugging-port=9222
- * ```
- *
- * Dann, mit deployter Plugin-Version (`OBSIDIAN_PLUGIN_DIR=<vault>/.obsidian/plugins/paperless-storage npm run deploy`):
- *
- * ```bash
+ * open "obsidian://open?vault=paperless-storage"
  * npm run smoke:gui
- * npm run smoke:gui -- --port 9222 --vault 00_ProtoVault --doc 1 --keep
+ * npm run smoke:gui -- --port 9222 --vault paperless-storage --doc 1 --keep
  * ```
  *
  * ⚠️ Chromium drosselt das Rendering nicht-fokussierter Fenster: ohne
@@ -33,8 +36,19 @@
  */
 
 import { execFileSync } from "node:child_process";
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
+// Die CDP-Brücke liegt seit 2026-08-16 zentral im Dach (tools/obsidian-cdp/) und wird
+// importiert, nicht vendored: sie ist plugin-neutral und lief zuvor byte-identisch in
+// sechs Repos. Fehlt das Dach (fremder Checkout), bricht esbuild beim Auflösen ab — das
+// ist die gewollte Meldung. Was ihr fehlt, wird DORT ergänzt, nicht hier nachgebaut.
+import { Cdp, attachTo, pollUntil } from "../../tools/obsidian-cdp/cdp.js";
+import { buildVault, stagingVaultDir } from "../../tools/obsidian-cdp/vault.js";
 
 const PLUGIN_ID = "paperless-storage";
+/** npm-Scripts laufen im Repo-Root. */
+const REPO_ROOT = process.cwd();
+const FIXTURE_DIR = join(REPO_ROOT, "docs/images/fixture");
 /** Werden im Vault angelegt und am Ende wieder entfernt (außer mit `--keep`). */
 const SMOKE_NOTE = "_pls-gui-smoke.md";
 const SMOKE_STUB = "_pls-gui-smoke.paperless";
@@ -43,126 +57,6 @@ const SMOKE_STUB = "_pls-gui-smoke.paperless";
  *  produktiven Vault den kompletten Dokument-Cache ab. */
 const SMOKE_CACHE_FOLDER = "_pls-gui-smoke-cache";
 const SMOKE_CACHE_FILE = `${SMOKE_CACHE_FOLDER}/gui-smoke.pdf`;
-
-// --- CDP-Minimalbrücke ------------------------------------------------------
-// Node ≥21 bringt `WebSocket` global mit — keine Dependency nötig.
-// Verbatim aus 3d-codeblocks/scripts/gui-smoke.ts übernommen (Skill-Anweisung: die
-// CDP-Brücke trägt die teuer erkauften Details, nicht neu bauen).
-
-interface CdpTarget {
-  type: string;
-  title: string;
-  url: string;
-  webSocketDebuggerUrl?: string;
-}
-
-interface CdpResponse {
-  id?: number;
-  result?: { result?: { value?: unknown }; exceptionDetails?: { text?: string } };
-  error?: { message?: string };
-}
-
-class Cdp {
-  private nextId = 1;
-  private readonly pending = new Map<number, { ok: (v: CdpResponse) => void; fail: (e: Error) => void }>();
-
-  private constructor(private readonly socket: WebSocket) {
-    socket.addEventListener("message", (event: MessageEvent) => {
-      const message = JSON.parse(String(event.data)) as CdpResponse;
-      if (message.id === undefined) return; // Event, kein Antwort-Frame
-      const waiter = this.pending.get(message.id);
-      if (!waiter) return;
-      this.pending.delete(message.id);
-      if (message.error) waiter.fail(new Error(message.error.message ?? "CDP-Fehler"));
-      else waiter.ok(message);
-    });
-  }
-
-  static async attach(port: number, vault?: string): Promise<Cdp> {
-    let targets: CdpTarget[];
-    try {
-      const response = await fetch(`http://127.0.0.1:${port}/json/list`);
-      targets = (await response.json()) as CdpTarget[];
-    } catch {
-      throw new Error(
-        `Kein Debug-Port auf ${port}. Obsidian mit --remote-debugging-port=${port} neu starten ` +
-          `(siehe Kopfkommentar).`,
-      );
-    }
-
-    // Das Hauptfenster ist die Seite mit Obsidians app-Schema; Popouts und DevTools
-    // tragen andere URLs. Ohne diese Auswahl landet man im falschen Renderer.
-    const pages = targets.filter(
-      (t) => t.type === "page" && t.url.startsWith("app://obsidian.md") && t.webSocketDebuggerUrl,
-    );
-    if (pages.length === 0) {
-      const seen = targets.map((t) => `${t.type} ${t.url}`).join("\n  ") || "(keine)";
-      throw new Error(`Kein Obsidian-Fenster unter den Targets gefunden:\n  ${seen}`);
-    }
-
-    // Mehrere offene Vaults sind der Normalfall, nicht die Ausnahme. Blind das erste
-    // Fenster zu nehmen hiesse, den Smoke im falschen Vault zu fahren — und der
-    // Fehlschlag saehe aus wie ein Plugin-Defekt ("Plugin nicht aktiv"). Der Titel
-    // traegt den Vault-Namen ("<Notiz> - <Vault> - Obsidian x.y.z").
-    const matching = vault
-      ? pages.filter((t) => t.title.toLowerCase().includes(vault.toLowerCase()))
-      : pages;
-    if (matching.length === 0) {
-      throw new Error(
-        `Kein Fenster passt zu --vault ${vault}. Offen:\n  ${pages.map((t) => t.title).join("\n  ")}`,
-      );
-    }
-    if (matching.length > 1) {
-      throw new Error(
-        `Mehrere Obsidian-Fenster offen — mit --vault <name> eines waehlen:\n  ` +
-          matching.map((t) => t.title).join("\n  "),
-      );
-    }
-    const page = matching[0];
-    // Der Filter oben garantiert die URL, der Typ nicht — der Guard haelt beides zusammen.
-    if (!page.webSocketDebuggerUrl) throw new Error(`Fenster ohne Debugger-URL: ${page.title}`);
-    console.log(`Fenster: ${page.title}`);
-
-    const socket = new WebSocket(page.webSocketDebuggerUrl);
-    await new Promise<void>((resolve, reject) => {
-      socket.addEventListener("open", () => resolve(), { once: true });
-      socket.addEventListener("error", () => reject(new Error("WebSocket-Verbindung fehlgeschlagen")), {
-        once: true,
-      });
-    });
-    return new Cdp(socket);
-  }
-
-  send(method: string, params: Record<string, unknown> = {}): Promise<CdpResponse> {
-    const id = this.nextId++;
-    this.socket.send(JSON.stringify({ id, method, params }));
-    return new Promise((ok, fail) => {
-      this.pending.set(id, { ok, fail });
-      setTimeout(() => {
-        if (!this.pending.delete(id)) return;
-        fail(new Error(`Zeitüberschreitung: ${method}`));
-      }, 30_000);
-    });
-  }
-
-  /** Ausdruck im Renderer auswerten. Wirft die Renderer-Ausnahme weiter, statt sie
-   *  als `undefined` zu verschlucken — sonst liest sich ein kaputter Ausdruck wie ein
-   *  fehlgeschlagener Prüfpunkt. */
-  async evaluate<T>(expression: string): Promise<T> {
-    const message = await this.send("Runtime.evaluate", {
-      expression: `(async () => { ${expression} })()`,
-      awaitPromise: true,
-      returnByValue: true,
-    });
-    const details = message.result?.exceptionDetails;
-    if (details) throw new Error(`Renderer: ${details.text ?? "Ausnahme"}`);
-    return message.result?.result?.value as T;
-  }
-
-  close(): void {
-    this.socket.close();
-  }
-}
 
 // --- Prüfpunkte -------------------------------------------------------------
 
@@ -179,16 +73,33 @@ function record(name: string, passed: boolean, detail: string): void {
   console.log(`${passed ? "  ✓" : "  ✗"} ${name}${detail ? ` — ${detail}` : ""}`);
 }
 
-/** Im Renderer: warten, bis `check()` wahr wird (Rendering ist asynchron). */
-const waitFor = (body: string, timeoutMs = 8000): string => `
-  const deadline = Date.now() + ${timeoutMs};
-  while (Date.now() < deadline) {
-    const value = (() => { ${body} })();
-    if (value) return value;
-    await new Promise((r) => setTimeout(r, 100));
+/**
+ * Fixture-Vault aus `docs/images/fixture/` aufbauen (`buildVault`, pluginneutral) und
+ * die Test-Zugangsdaten aus der Umgebung in dessen `data.json` schreiben. Nie im Code
+ * oder im Fixture selbst — der Vault ist getrackt, ein Secret darin ginge mit jedem
+ * `git push` um die Welt.
+ */
+async function setupVault(): Promise<void> {
+  const vaultDir = stagingVaultDir("paperless-storage");
+  const log = buildVault({ repoRoot: REPO_ROOT, vaultDir, fixtureDir: FIXTURE_DIR, pluginId: PLUGIN_ID });
+  for (const zeile of log) console.log(`  ${zeile}`);
+
+  const serverUrl = process.env.PAPERLESS_URL;
+  const apiToken = process.env.PAPERLESS_TOKEN;
+  if (!serverUrl || !apiToken) {
+    throw new Error(
+      "PAPERLESS_URL und PAPERLESS_TOKEN müssen gesetzt sein — der Smoke schreibt sie in " +
+        "die (gitignorete) data.json des Fixture-Vaults, nie in den Vault selbst.",
+    );
   }
-  return null;
-`;
+  const dataFile = join(vaultDir, ".obsidian", "plugins", PLUGIN_ID, "data.json");
+  writeFileSync(
+    dataFile,
+    JSON.stringify({ serverUrl, apiToken, cacheFolder: "_paperless-storage/", hideCacheFolder: true }, null, 2),
+  );
+  console.log(`  Zugangsdaten aus PAPERLESS_URL/PAPERLESS_TOKEN geschrieben nach ${dataFile}`);
+  console.log(`\nVault: ${vaultDir}\nObsidian jetzt NEU STARTEN, dann: npm run smoke:gui -- --vault paperless-storage`);
+}
 
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
@@ -196,13 +107,26 @@ async function main(): Promise<void> {
     const index = argv.indexOf(`--${name}`);
     return index === -1 ? undefined : argv[index + 1];
   };
+  if (argv.includes("--setup")) {
+    await setupVault();
+    return;
+  }
   const port = Number(flag("port") ?? 9222);
   const keep = argv.includes("--keep");
   const docId = Number(flag("doc") ?? 1);
-  const vault = flag("vault");
+  const vault = flag("vault") ?? "paperless-storage";
 
   console.log(`GUI-Smoke — Obsidian auf Port ${port}`);
-  const cdp = await Cdp.attach(port, vault);
+  // `attachTo` unterscheidet Haupt- und Einstellungen-Fenster an der Sache (nur das
+  // Hauptfenster trägt einen Workspace), nicht am lokalisierten Titel.
+  const cdp = await attachTo("workspace", port, vault);
+  if (!cdp) {
+    throw new Error(
+      `Kein Obsidian-Hauptfenster auf Port ${port}` +
+        (vault ? ` für Vault „${vault}“` : "") +
+        ". Läuft Obsidian mit --remote-debugging-port? (siehe Kopfkommentar)",
+    );
+  }
   // Ausserhalb des try, damit das `finally` sie auch nach einem Abbruch mitten im Lauf
   // zurueckschreiben kann — sonst bliebe der Vault im Smoke-Zustand stehen.
   let previousHideCacheFolder: boolean | null = null;
@@ -275,34 +199,46 @@ async function main(): Promise<void> {
     `);
 
     // --- 1./2. Cache-Ordner-Sichtbarkeit (hide-folder.ts, Constructable Stylesheet) ---
-    const hiddenState = await cdp.evaluate<string>(`
+    // Mutation und Wartephase sind getrennt: `pollUntil` fragt Node-seitig in eigenen,
+    // kurzen `Runtime.evaluate`-Aufrufen nach — `Cdp.send` bricht sonst nach 30 s ab.
+    await cdp.evaluate(`
       const p = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}];
       p.settings.hideCacheFolder = true;
       await p.saveSettings();
       p.applyCacheFolderVisibility();
-      ${waitFor(`
+      return true;
+    `);
+    const hiddenState = await pollUntil<string>(
+      cdp,
+      `
         const el = document.querySelector('.nav-folder-title[data-path="${cacheFolder}"]');
         if (!el) return null;
         return getComputedStyle(el).display;
-      `)}
-    `);
+      `,
+      8000,
+    );
     record(
       "1. Cache-Ordner ausgeblendet bei hideCacheFolder=true",
       hiddenState === "none",
       hiddenState === null ? "Ordner-Element nicht im Explorer gefunden" : `display: ${hiddenState}`,
     );
 
-    const visibleState = await cdp.evaluate<string>(`
+    await cdp.evaluate(`
       const p = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}];
       p.settings.hideCacheFolder = false;
       await p.saveSettings();
       p.applyCacheFolderVisibility();
-      ${waitFor(`
+      return true;
+    `);
+    const visibleState = await pollUntil<string>(
+      cdp,
+      `
         const el = document.querySelector('.nav-folder-title[data-path="${cacheFolder}"]');
         if (!el) return null;
         return getComputedStyle(el).display;
-      `)}
-    `);
+      `,
+      8000,
+    );
     record(
       "2. Cache-Ordner wieder sichtbar bei hideCacheFolder=false",
       visibleState !== null && visibleState !== "none",
@@ -354,11 +290,13 @@ async function main(): Promise<void> {
     // initialisiert hat), NICHT scrollHeight>clientHeight: der `.internal-embed`-Span
     // wird von applyEmbedHeight/dem Viewer selbst auf die Inhaltsgroesse GESETZT, bleibt
     // also scrollHeight===clientHeight, auch im geladenen Zustand (gemessen 2026-08-06).
-    const embedLoaded = await cdp.evaluate<boolean>(
-      waitFor(`
+    const embedLoaded = await pollUntil<boolean>(
+      cdp,
+      `
         const span = document.querySelector(".internal-embed");
         return !!span?.querySelector(".pdf-toolbar");
-      `, 15000),
+      `,
+      15000,
     );
     const embedDiag = await cdp.evaluate<string>(`
       const span = document.querySelector(".internal-embed");
@@ -400,11 +338,13 @@ async function main(): Promise<void> {
       await app.workspace.getLeaf(false).openFile(stub);
       return true;
     `);
-    const fileViewLoaded = await cdp.evaluate<boolean>(
-      waitFor(`
+    const fileViewLoaded = await pollUntil<boolean>(
+      cdp,
+      `
         const content = document.querySelector(".view-content");
         return !!content?.querySelector(".pdf-toolbar");
-      `, 15000),
+      `,
+      15000,
     );
     const fileViewDiag = await cdp.evaluate<string>(`
       const content = document.querySelector(".view-content");

@@ -6,26 +6,52 @@ spezifiziert, nicht getestet. Prüft die Naht zum Host, die die 74 vitest-Tests
 strukturell nicht sehen können: `embedRegistry`-Verhalten, Obsidians eigenen
 PDF-Viewer, echte Datei-Explorer-DOM-Mutationen.
 
-Vendored aus `3d-codeblocks/scripts/gui-smoke.ts` (Skill `gui-smoke-setup`, Dach-`AGENTS.md`
-Extraktions-Schwelle — CDP-Brücke verbatim übernommen, Prüfpunkte plugin-eigen).
+CDP-Brücke seit 2026-08-18 aus dem Dach importiert (`tools/obsidian-cdp/`, s. dortige
+`CLAUDE.md`), nicht mehr inline getragen — sie ist plugin-neutral und lag zuvor
+byte-identisch in sechs Repos.
+
+## Vault
+
+Läuft seit 2026-08-18 gegen einen eigenen, getrackten Fixture-Vault
+(`docs/images/fixture/`) statt gegen einen geteilten Arbeits-Vault. Grund: mehrere
+gleichzeitig offene Obsidian-Fenster teilen sich einen Prozess, und Chromium drosselt
+jedes nicht fokussierte massiv (`document.visibilityState: hidden`, auch nach
+`Page.bringToFront` + `osascript activate`) — bei drei offenen Vaults ließ sich das
+Ziel-Fenster in einer Fernsitzung nicht zuverlässig nach vorn holen. Ein einzeln
+gestarteter, eigener Vault umgeht das strukturell. Derselbe Fixture dient später auch
+`scripts/shots.ts` (Skill `readme-shots`, noch nicht eingerichtet).
+
+**Zugangsdaten stehen NICHT im Fixture** (git-getrackt, ginge sonst mit jedem Push um
+die Welt) — `--setup` schreibt sie aus der Umgebung in die `data.json` des extern
+liegenden Vaults.
 
 ## Vorbereitung
 
 ```bash
+export STAGING_VAULTS_DIR=/Users/Shared/60_StagingVaults   # einmalig
+export PAPERLESS_URL=https://paperless.jkaindl.de
+export PAPERLESS_TOKEN=…
+npm run build
+npm run smoke:gui -- --setup      # baut/aktualisiert den Vault
 osascript -e 'quit app "Obsidian"'
 open -a Obsidian --args --remote-debugging-port=9222
-open "obsidian://open?vault=<vault>"   # z. B. 00_ProtoVault
-OBSIDIAN_PLUGIN_DIR="<vault>/.obsidian/plugins/paperless-storage" npm run deploy
+open "obsidian://open?vault=paperless-storage"   # erster Start: Vault vorher unter
+                                                  # diesem Namen in Obsidian registrieren
 ```
 
-Braucht einen im Vault konfigurierten Server + Token (`data.json`: `serverUrl`,
-`apiToken`) und mindestens ein per Token erreichbares Dokument (Default `--doc 1`).
+Braucht mindestens ein per Token erreichbares Dokument (Default `--doc 1`).
 Referenz-Testinstanz: `https://paperless.jkaindl.de`, Dokument-ID 1 ("notes-to-media").
+
+⚠️ **Cold-Start-Effekt auf einem frischen Vault:** Checks 1/2 (Cache-Ordner-Sichtbarkeit)
+schlagen im allerersten Lauf gegen einen neu gebauten Vault fehl
+(„Ordner-Element nicht im Explorer gefunden") — der Cache-Ordner existiert erst, nachdem
+ein Dokument einmal geladen wurde. Ein zweiter Lauf direkt danach ist grün. Kein Defekt,
+kein Migrations-Regress — gemessen 2026-08-18 bei der Umstellung auf den Fixture-Vault.
 
 ## Lauf
 
 ```bash
-npm run smoke:gui -- --port 9222 --vault 00_ProtoVault
+npm run smoke:gui -- --port 9222 --vault paperless-storage
 ```
 
 ## Prüfpunkte
@@ -72,10 +98,30 @@ Vault-Zustand nach dem Lauf geprüft: `data.json` (`hideCacheFolder: true`,
 `embedHeight: null`) unverändert gegenüber vor dem Lauf, keine `_pls-gui-smoke.*`-
 Leftover-Dateien im Vault.
 
+### 2026-08-18 — Obsidian 1.13.7, Plugin 0.1.2 — CDP-Brücke zentralisiert + Fixture-Vault
+
+CDP-Brücke aus dem inline getragenen Nachbau auf den zentralen Import aus
+`tools/obsidian-cdp/` umgestellt (`attachTo` statt `Cdp.attach`, `pollUntil` statt dem
+renderer-seitigen `waitFor`). Baseline vor der Migration: 8/8 grün gegen `00_ProtoVault`.
+
+Beim Verifizieren der Migration zusätzlich auf einen eigenen Fixture-Vault
+(`docs/images/fixture/`) umgestellt, weil sich `00_ProtoVault` in dieser Sitzung nicht
+zuverlässig nach vorn holen ließ (drei gleichzeitig offene Vault-Fenster, alle
+`document.visibilityState: hidden`, auch nach `Page.bringToFront` + `osascript activate`
+— vermutlich eine Eigenheit von Remote-/Fernsitzungen ohne durchgehenden Display-Fokus).
+Erster Lauf gegen den frischen Fixture-Vault: 5/8 grün, drei Fehlschläge — zwei davon der
+oben dokumentierte Cold-Start-Effekt (Cache-Ordner existiert noch nicht), einer ein
+echter Fixture-Mangel: `core-plugins.json` hatte `bookmarks` nicht explizit
+deaktiviert, wodurch Obsidians Standard-Lesezeichen-Panel eine zweite
+`.view-content`-Instanz vor der Haupt-Ansicht in den DOM setzte — Check 5 (`.view-content`
+als „eindeutig" vorausgesetzt) fand dadurch das falsche Element. Nach dem Fix (`bookmarks`,
+`properties`, `canvas` ergänzt) und einem zweiten Lauf: **8/8 grün**, identisch zur
+Baseline. `npm run gate` durchgehend grün.
+
 ## Abweichungen zur `3d-codeblocks`-Vorlage (Material für spätere Extraktion)
 
-- **CDP-Brücke** (`Cdp`-Klasse, `waitFor`, `record`, Fenster-Auswahl per `--vault`):
-  **byte-nah identisch** übernommen, keine Anpassung nötig.
+- **CDP-Brücke**: seit 2026-08-18 zentraler Import aus `tools/obsidian-cdp/`
+  (`attachTo`, `pollUntil`), nicht mehr inline getragen — s. Durchlauf oben.
 - **Kein Test-Content im Vault gesucht** — 3d-codeblocks sucht eine vorhandene `.glb`
   im Vault; paperless-storage legt Stub **und** Note selbst an (`_pls-gui-smoke.paperless`
   + `.md`), weil das Dokument über eine Server-ID kommt, nicht über einen Vault-Pfad.
