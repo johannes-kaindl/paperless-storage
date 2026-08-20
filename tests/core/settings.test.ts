@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
-  DEFAULT_SETTINGS, mergeSettings, isConfigured, resolveCacheFolder,
+  DEFAULT_SETTINGS, isConfigured, resolveCacheFolder,
 } from "../../src/core/settings";
+import { mergeSettings } from "../../src/vendor/kit/settings";
 
 describe("DEFAULT_SETTINGS", () => {
   it("nutzt _paperless-storage/ im Vault-Root", () => {
@@ -24,22 +25,22 @@ describe("DEFAULT_SETTINGS", () => {
 
 describe("mergeSettings", () => {
   it("ergaenzt fehlende Felder aus den Defaults", () => {
-    expect(mergeSettings({ serverUrl: "https://x.tld" }).cacheFolder).toBe("_paperless-storage/");
+    expect(mergeSettings(DEFAULT_SETTINGS, { serverUrl: "https://x.tld" }).cacheFolder).toBe("_paperless-storage/");
   });
   it("vertraegt null und undefined", () => {
-    expect(mergeSettings(null)).toEqual(DEFAULT_SETTINGS);
-    expect(mergeSettings(undefined)).toEqual(DEFAULT_SETTINGS);
+    expect(mergeSettings(DEFAULT_SETTINGS, null)).toEqual(DEFAULT_SETTINGS);
+    expect(mergeSettings(DEFAULT_SETTINGS, undefined)).toEqual(DEFAULT_SETTINGS);
   });
   it("uebernimmt gesetzte Werte", () => {
-    expect(mergeSettings({ apiToken: "abc" }).apiToken).toBe("abc");
+    expect(mergeSettings(DEFAULT_SETTINGS, { apiToken: "abc" }).apiToken).toBe("abc");
   });
   it("liefert bei jedem Aufruf ein frisches Objekt", () => {
-    const a = mergeSettings({});
+    const a = mergeSettings(DEFAULT_SETTINGS, {});
     a.cacheFolder = "geaendert/";
-    expect(mergeSettings({}).cacheFolder).toBe("_paperless-storage/");
+    expect(mergeSettings(DEFAULT_SETTINGS, {}).cacheFolder).toBe("_paperless-storage/");
   });
   it("uebernimmt eine gesetzte Embed-Hoehe", () => {
-    expect(mergeSettings({ embedHeight: 500 }).embedHeight).toBe(500);
+    expect(mergeSettings(DEFAULT_SETTINGS, { embedHeight: 500 }).embedHeight).toBe(500);
   });
 });
 

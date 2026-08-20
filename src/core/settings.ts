@@ -23,10 +23,8 @@ export const DEFAULT_SETTINGS: PaperlessSettings = {
   embedHeight: null,
 };
 
-export function mergeSettings(raw: unknown): PaperlessSettings {
-  const partial = (raw ?? {}) as Partial<PaperlessSettings>;
-  return { ...DEFAULT_SETTINGS, ...partial };
-}
+// mergeSettings lag hier bis 0.27.0 als reiner Spread. Es kommt jetzt aus dem Kit
+// (src/vendor/kit/settings.ts) und ist zweiparametrig: mergeSettings(DEFAULT_SETTINGS, raw).
 
 /** Normalisierter Ordner ohne fuehrende/abschlieszende Schraegstriche. */
 export function resolveCacheFolder(settings: PaperlessSettings): string {

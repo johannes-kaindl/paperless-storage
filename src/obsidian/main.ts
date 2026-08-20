@@ -2,10 +2,10 @@ import { getLanguage, Notice, Plugin } from "obsidian";
 import {
   DEFAULT_SETTINGS,
   isConfigured,
-  mergeSettings,
   resolveCacheFolder,
   type PaperlessSettings,
 } from "../core/settings";
+import { mergeSettings } from "../vendor/kit/settings";
 import { pickLang, setLang, t } from "../core/i18n";
 import { obsidianTransport } from "./http";
 import { CacheStore } from "./cache-store";
@@ -20,7 +20,7 @@ export default class PaperlessStoragePlugin extends Plugin {
   settings: PaperlessSettings = DEFAULT_SETTINGS;
 
   async onload(): Promise<void> {
-    this.settings = mergeSettings(await this.loadData());
+    this.settings = mergeSettings(DEFAULT_SETTINGS, await this.loadData());
     // Sprachdetektion lebt in der obsidian-Schicht und laeuft einmalig beim onload
     // (PROF-OBS-07) — der reine i18n-Kern kennt obsidian nicht.
     setLang(pickLang(getLanguage()));

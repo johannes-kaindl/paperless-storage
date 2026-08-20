@@ -7,7 +7,7 @@
 import {
   documentMetaRequest, documentFileRequest, parseDocumentMeta,
 } from "../src/core/paperless-api.ts";
-import { extractErrorMessage } from "../src/core/errors.ts";
+import { errorMessageFromText } from "../src/vendor/kit/error_body.ts";
 
 const serverUrl = process.env["PAPERLESS_URL"];
 const apiToken = process.env["PAPERLESS_TOKEN"];
@@ -51,7 +51,7 @@ await run("401 bei falschem Token", async () => {
   const spec = documentMetaRequest({ ...cfg, apiToken: "ungueltig" }, id);
   const res = await fetch(spec.url, { headers: spec.headers });
   if (res.status !== 401 && res.status !== 403) throw new Error(`erwartet 401/403, war ${res.status}`);
-  const msg = extractErrorMessage(await res.text());
+  const msg = errorMessageFromText(await res.text());
   console.log(`       Status ${res.status}, Servermeldung: ${msg ?? "(nicht lesbar)"}`);
 });
 
