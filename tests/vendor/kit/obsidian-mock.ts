@@ -1,4 +1,4 @@
-// vendored from obsidian-kit@0.24.0, src/testing/obsidian-mock.ts — do not hand-edit; re-vendor via tools/sync-kit.sh
+// vendored from obsidian-kit@0.27.0, src/testing/obsidian-mock.ts — do not hand-edit; re-vendor via tools/sync-kit.sh
 // Self-contained Obsidian test double for obsidian-kit.
 // - Zero external imports (NOT from "obsidian", NOT from "vitest").
 // - Consumed via vitest `resolve.alias` as a drop-in for `import ... from "obsidian"`,
@@ -43,11 +43,27 @@ function fn(impl?: (...args: any[]) => any): MockFn {
 // className-string model (image-to-markdown / vault-rag) + additive
 // classList/classes/firstChild affordances (kuro-gamification).
 // ---------------------------------------------------------------------------
-export function makeFakeEl(): any {
+/** Minimaler Selektor-Abgleich für `querySelectorAll` unten: Tag-Name (`input`) oder
+ *  einfache Klasse (`.foo`). Bewusst KEIN CSS-Parser — nur so viel, wie die Kit-Module
+ *  brauchen (die Endpunkt-Liste sperrt ihre Zeilen über `"input, button, select"`). */
+function matchesSimpleSelector(node: any, selector: string): boolean {
+  const s = selector.trim();
+  if (!s) return false;
+  if (s.startsWith(".")) return node?.hasClass?.(s.slice(1)) === true;
+  return String(node?.tagName ?? "").toLowerCase() === s.toLowerCase();
+}
+
+/** `tagName` ist ein Parameter, weil die Komponenten-Konstruktoren unten echte Tags brauchen:
+ *  `Setting.addText` liefert im echten Obsidian ein `<input>`, `addDropdown` ein `<select>`,
+ *  `addButton` ein `<button>`. Ein pauschales `DIV` machte jedes
+ *  `querySelectorAll("input, button, select")` blind — die Endpunkt-Liste sperrt ihre Zeilen
+ *  genau so. */
+export function makeFakeEl(tagName = "DIV"): any {
   const children: any[] = [];
   const attrs: Record<string, string> = {};
   const listeners: Record<string, Array<(...args: any[]) => void>> = {};
   let ownText = "";
+  let parent: any = null;
 
   const style: Record<string, any> = {
     setProperty(prop: string, value: string) { style[prop] = value; },
@@ -60,6 +76,7 @@ export function makeFakeEl(): any {
     if (o?.cls) c.className = Array.isArray(o.cls) ? o.cls.join(" ") : String(o.cls);
     if (o?.text != null) c.textContent = String(o.text);
     if (o?.attr) for (const k of Object.keys(o.attr)) c.setAttribute(k, String(o.attr[k]));
+    c.parentElement = el;
     children.push(c);
     return c;
   };
@@ -69,20 +86,32 @@ export function makeFakeEl(): any {
     style,
     dataset: {} as Record<string, string>,
     className: "",
-    tagName: "DIV",
+    tagName: String(tagName ?? "DIV").toUpperCase(),
     _listeners: listeners,
 
     empty() { children.length = 0; ownText = ""; },
     detach() {},
-    remove() {},
+    /** Hängt sich beim Elternknoten aus, wie im echten DOM. Nötig für Kit-Module, die
+     *  Zusatz-DOM in-place wieder wegnehmen (Drittanbieter-Icon der Endpunkt-Liste). */
+    remove() { parent?.removeChild?.(el); },
     focus() {},
     blur() {},
 
     createEl: (tag: string, o?: any) => makeChild(tag, o),
     createDiv: (o?: any) => makeChild("div", o),
     createSpan: (o?: any) => makeChild("span", o),
-    appendChild: (c: any) => { children.push(c); return c; },
-    removeChild: (c: any) => { const i = children.indexOf(c); if (i >= 0) children.splice(i, 1); return c; },
+    /** ANHÄNGEN, nicht verschieben: anders als im echten DOM bleibt ein bereits woanders
+     *  hängender Knoten zusätzlich bei seinem alten Elternknoten stehen. Bewusst nicht
+     *  repariert — Kit-Module hängen nur frische Knoten an. Folge für Tests: eine Aussage
+     *  über die Reihenfolge der Kinder ist nur dort belastbar, wo kein Knoten umgehängt
+     *  wurde (der Modell-Picker hängt seine Komponenten aus `controlEl` in den Slot um). */
+    appendChild: (c: any) => { if (c && typeof c === "object") c.parentElement = el; children.push(c); return c; },
+    removeChild: (c: any) => {
+      const i = children.indexOf(c);
+      if (i >= 0) children.splice(i, 1);
+      if (c && typeof c === "object" && c.parentElement === el) c.parentElement = null;
+      return c;
+    },
     replaceChildren: (...nodes: any[]) => { children.length = 0; children.push(...nodes); },
 
     setText: (t: string) => { ownText = String(t ?? ""); },
@@ -111,6 +140,22 @@ export function makeFakeEl(): any {
     setCssStyles: (s: Record<string, any>) => { Object.assign(style, s); },
     setCssProps: (s: Record<string, any>) => { Object.assign(style, s); },
 
+    /** Rekursive Nachfahren-Suche über kommagetrennte Tag-/Klassen-Selektoren.
+     *  Gibt ein Array zurück (nicht NodeList) — es trägt `forEach`, mehr braucht der
+     *  Aufrufer nicht. */
+    querySelectorAll: (selector: string) => {
+      const parts = String(selector ?? "").split(",").map((p) => p.trim()).filter(Boolean);
+      const out: any[] = [];
+      const walk = (node: any): void => {
+        for (const c of node?.children ?? []) {
+          if (parts.some((p) => matchesSimpleSelector(c, p))) out.push(c);
+          walk(c);
+        }
+      };
+      walk(el);
+      return out;
+    },
+
     addEventListener: (event: string, cb: (...a: any[]) => void) => { (listeners[event] ??= []).push(cb); },
     removeEventListener: (event: string, cb: (...a: any[]) => void) => {
       const arr = listeners[event];
@@ -132,6 +177,15 @@ export function makeFakeEl(): any {
     },
     enumerable: false,
   });
+  // Nicht enumerierbar: ein Elternzeiger als normale Eigenschaft machte jeden Fake-Knoten
+  // zyklisch und damit in `toEqual`-Vergleichen unlesbar.
+  Object.defineProperty(el, "parentElement", {
+    get: () => parent,
+    set: (p: any) => { parent = p ?? null; },
+    enumerable: false,
+    configurable: true,
+  });
+  Object.defineProperty(el, "parentNode", { get: () => parent, enumerable: false, configurable: true });
   Object.defineProperty(el, "classes", {
     get: () => new Set(el.className.split(" ").filter(Boolean)),
     enumerable: false,
@@ -160,23 +214,31 @@ export function makeFakeEl(): any {
 // Chainable Setting components (node-safe; no real DOM).
 // ---------------------------------------------------------------------------
 export class TextComponent {
-  inputEl: any = makeFakeEl();
+  inputEl: any = makeFakeEl("INPUT");
   protected _value = "";
   onChangeCB: ((v: string) => any) | null = null;
+  constructor() {
+    this.inputEl.__component = this;
+  }
   getValue(): string { return this._value; }
   setValue(v: string): this { this._value = String(v ?? ""); return this; }
   setPlaceholder(_p: string): this { return this; }
   setDisabled(_d: boolean): this { return this; }
   onChange(cb: (v: string) => any): this { this.onChangeCB = cb; return this; }
 }
-export class TextAreaComponent extends TextComponent {}
+export class TextAreaComponent extends TextComponent {
+  constructor() { super(); this.inputEl.tagName = "TEXTAREA"; }
+}
 export class SearchComponent extends TextComponent {
-  clearButtonEl: any = makeFakeEl();
+  clearButtonEl: any = makeFakeEl();   // im echten Obsidian ein div.search-input-clear-button
 }
 export class ToggleComponent {
-  toggleEl: any = makeFakeEl();
+  toggleEl: any = makeFakeEl();        // im echten Obsidian ein div.checkbox-container
   protected _value = false;
   onChangeCB: ((v: boolean) => any) | null = null;
+  constructor() {
+    this.toggleEl.__component = this;
+  }
   getValue(): boolean { return this._value; }
   setValue(v: boolean): this { this._value = Boolean(v); return this; }
   setDisabled(_d: boolean): this { return this; }
@@ -184,10 +246,13 @@ export class ToggleComponent {
   onChange(cb: (v: boolean) => any): this { this.onChangeCB = cb; return this; }
 }
 export class DropdownComponent {
-  selectEl: any = makeFakeEl();
+  selectEl: any = makeFakeEl("SELECT");
   options: Record<string, string> = {};
   protected _value = "";
   onChangeCB: ((v: string) => any) | null = null;
+  constructor() {
+    this.selectEl.__component = this;
+  }
   addOption(value: string, display: string): this { this.options[value] = display; return this; }
   addOptions(options: Record<string, string>): this { Object.assign(this.options, options); return this; }
   getValue(): string { return this._value; }
@@ -196,10 +261,13 @@ export class DropdownComponent {
   onChange(cb: (v: string) => any): this { this.onChangeCB = cb; return this; }
 }
 export class SliderComponent {
-  sliderEl: any = makeFakeEl();
+  sliderEl: any = makeFakeEl("INPUT");   // im echten Obsidian ein input[type=range]
   protected _value = 0;
   limits: [number, number, number] = [0, 100, 1];
   onChangeCB: ((v: number) => any) | null = null;
+  constructor() {
+    this.sliderEl.__component = this;
+  }
   setLimits(min: number, max: number, step: number): this { this.limits = [min, max, step]; return this; }
   getValue(): number { return this._value; }
   setValue(v: number): this { this._value = Number(v); return this; }
@@ -208,9 +276,12 @@ export class SliderComponent {
   onChange(cb: (v: number) => any): this { this.onChangeCB = cb; return this; }
 }
 export class ButtonComponent {
-  buttonEl: any = makeFakeEl();
+  buttonEl: any = makeFakeEl("BUTTON");
   clickCB: (() => any) | null = null;
   textValue = "";
+  /** Zuletzt gesetzter Tooltip-Text — aufgezeichnet statt verworfen, damit Konsumenten
+   *  belegen können, WAS an einem Knopf hängt (der echte Obsidian schreibt ihn ins DOM). */
+  tooltip = "";
   ctaSet = false;
   warningSet = false;
   destructiveSet = false;
@@ -227,15 +298,20 @@ export class ButtonComponent {
   /** Erst ab Obsidian 1.13 vorhanden. Tests des <1.13-Fallbacks löschen die Methode am
    *  Prototyp (`delete ButtonComponent.prototype.setDestructive`) — s. tests/confirm.test.ts. */
   setDestructive(): this { this.destructiveSet = true; return this; }
-  setTooltip(_t: string): this { return this; }
+  setTooltip(t: string): this { this.tooltip = String(t ?? ""); return this; }
   setDisabled(_d: boolean): this { return this; }
   onClick(cb: () => any): this { this.clickCB = cb; return this; }
 }
 export class ExtraButtonComponent {
-  extraSettingsEl: any = makeFakeEl();
+  extraSettingsEl: any = makeFakeEl();   // im echten Obsidian ein div.clickable-icon (kennt kein `disabled`)
   clickCB: (() => any) | null = null;
-  setIcon(_i: string): this { return this; }
-  setTooltip(_t: string): this { return this; }
+  /** Icon- und Tooltip-Wert werden aufgezeichnet, nicht verworfen: an einem Icon-Knopf ist
+   *  der Tooltip der EINZIGE Text, und Kit-Module setzen dort Zusammensetzungen
+   *  („<Hinweis> · <Knopf>", s. renderModelPicker). Ohne Aufzeichnung ist das ungetestet. */
+  iconName = "";
+  tooltip = "";
+  setIcon(i: string): this { this.iconName = String(i ?? ""); return this; }
+  setTooltip(t: string): this { this.tooltip = String(t ?? ""); return this; }
   setDisabled(_d: boolean): this { return this; }
   onClick(cb: () => any): this { this.clickCB = cb; return this; }
 }
@@ -348,12 +424,27 @@ export class PluginSettingTab {
 export class Setting {
   static __last: Setting | null = null;
   settingEl: any;
+  /** Der Control-Teilbaum der Zeile (im echten Obsidian `.setting-item-control`).
+   *  Kit-Module zeichnen dort Zusatz-DOM neben die `add*`-Komponenten — die Endpunkt-Liste
+   *  etwa Status-Icon, Rollenzeile, Warn-/Drittanbieter-Icon und den Modell-Slot. */
+  controlEl: any;
   components: any[] = [];
   nameValue = "";
   descValue = "";
   constructor(public containerEl: any) {
     this.settingEl = containerEl?.createDiv ? containerEl.createDiv({ cls: "setting-item" }) : makeFakeEl();
+    this.settingEl.__setting = this;
+    // Fallback für minimale Container-Doubles in Bestandstests (`{ createDiv: () => ({}) }`):
+    // deren settingEl kann selbst kein createDiv — controlEl bleibt dann losgelöst, statt zu werfen.
+    this.controlEl = this.settingEl?.createDiv
+      ? this.settingEl.createDiv({ cls: "setting-item-control" })
+      : makeFakeEl();
     Setting.__last = this;
+  }
+  /** Wie im echten Obsidian landen die `add*`-Elemente in controlEl, nicht direkt in
+   *  settingEl — sonst stünde das Zusatz-DOM (controlEl) neben statt zwischen ihnen. */
+  private attach(el: any): void {
+    if (el?.appendChild && this.controlEl?.appendChild) this.controlEl.appendChild(el);
   }
   setName(name: any): this { this.nameValue = String(name ?? ""); return this; }
   setDesc(desc: any): this { this.descValue = String(desc ?? ""); return this; }
@@ -361,15 +452,15 @@ export class Setting {
   setClass(_c: string): this { return this; }
   setTooltip(_t: string): this { return this; }
   setDisabled(_d: boolean): this { return this; }
-  addText(cb: (c: TextComponent) => any): this { const c = new TextComponent(); this.components.push(c); cb(c); return this; }
-  addTextArea(cb: (c: TextAreaComponent) => any): this { const c = new TextAreaComponent(); this.components.push(c); cb(c); return this; }
-  addSearch(cb: (c: SearchComponent) => any): this { const c = new SearchComponent(); this.components.push(c); cb(c); return this; }
-  addToggle(cb: (c: ToggleComponent) => any): this { const c = new ToggleComponent(); this.components.push(c); cb(c); return this; }
-  addDropdown(cb: (c: DropdownComponent) => any): this { const c = new DropdownComponent(); this.components.push(c); cb(c); return this; }
-  addSlider(cb: (c: SliderComponent) => any): this { const c = new SliderComponent(); this.components.push(c); cb(c); return this; }
-  addButton(cb: (c: ButtonComponent) => any): this { const c = new ButtonComponent(); this.components.push(c); cb(c); return this; }
-  addExtraButton(cb: (c: ExtraButtonComponent) => any): this { const c = new ExtraButtonComponent(); this.components.push(c); cb(c); return this; }
-  addMomentFormat(cb: (c: TextComponent) => any): this { const c = new TextComponent(); this.components.push(c); cb(c); return this; }
+  addText(cb: (c: TextComponent) => any): this { const c = new TextComponent(); this.components.push(c); this.attach(c.inputEl); cb(c); return this; }
+  addTextArea(cb: (c: TextAreaComponent) => any): this { const c = new TextAreaComponent(); this.components.push(c); this.attach(c.inputEl); cb(c); return this; }
+  addSearch(cb: (c: SearchComponent) => any): this { const c = new SearchComponent(); this.components.push(c); this.attach(c.inputEl); cb(c); return this; }
+  addToggle(cb: (c: ToggleComponent) => any): this { const c = new ToggleComponent(); this.components.push(c); this.attach(c.toggleEl); cb(c); return this; }
+  addDropdown(cb: (c: DropdownComponent) => any): this { const c = new DropdownComponent(); this.components.push(c); this.attach(c.selectEl); cb(c); return this; }
+  addSlider(cb: (c: SliderComponent) => any): this { const c = new SliderComponent(); this.components.push(c); this.attach(c.sliderEl); cb(c); return this; }
+  addButton(cb: (c: ButtonComponent) => any): this { const c = new ButtonComponent(); this.components.push(c); this.attach(c.buttonEl); cb(c); return this; }
+  addExtraButton(cb: (c: ExtraButtonComponent) => any): this { const c = new ExtraButtonComponent(); this.components.push(c); this.attach(c.extraSettingsEl); cb(c); return this; }
+  addMomentFormat(cb: (c: TextComponent) => any): this { const c = new TextComponent(); this.components.push(c); this.attach(c.inputEl); cb(c); return this; }
 }
 
 // ---------------------------------------------------------------------------
@@ -452,7 +543,9 @@ export class WorkspaceLeaf {
 // vault-rag extensions.
 // ---------------------------------------------------------------------------
 export abstract class AbstractInputSuggest<T> {
-  constructor(protected app: any, protected inputEl: any) {}
+  constructor(protected app: any, protected inputEl: any) {
+    if (this.inputEl) this.inputEl.__folderSuggestAttached = true;
+  }
   abstract getSuggestions(query: string): T[] | Promise<T[]>;
   abstract renderSuggestion(value: T, el: any): void;
   selectSuggestion(_value: T, _evt?: any): void { this.close(); }
@@ -531,6 +624,9 @@ export function setIcon(el: any, iconId: string): void {
   if (el.dataset) el.dataset.icon = iconId;
   el.setAttribute?.("data-icon", iconId);
 }
+export function setTooltip(el: any, tooltip: string): void {
+  el.setAttribute?.("data-tooltip", tooltip);
+}
 export function getLanguage(): string { return "en"; }
 export function normalizePath(path: string): string {
   const out = String(path)
@@ -589,6 +685,7 @@ export function makeFakeApp(): any {
       getAbstractFileByPath: fn().mockReturnValue(null),
       getFiles: fn().mockReturnValue([]),
       getMarkdownFiles: fn().mockReturnValue([]),
+      getAllFolders: fn().mockReturnValue([]),
       read: fn().mockResolvedValue(""),
       cachedRead: fn().mockResolvedValue(""),
       create: fn().mockResolvedValue(new TFile()),
@@ -620,10 +717,24 @@ export function makeFakeApp(): any {
   };
 }
 
+/** Konstruierbares App-Double (`new App()`), z.B. fuer Consumer-Tests, die eine
+ *  echte App-Instanz statt eines rohen `makeFakeApp()`-Objekts erwarten (etwa
+ *  Signaturen, die `App` als Klassentyp durchreichen). Traegt dieselbe Form
+ *  wie `makeFakeApp()` -- keine zweite Wahrheit, nur eine konstruierbare Huelle. */
+export class App {
+  vault: any;
+  workspace: any;
+  metadataCache: any;
+  fileManager: any;
+  keymap: any;
+  constructor() {
+    Object.assign(this, makeFakeApp());
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Type-only exports (no runtime stub; not part of MockStubs).
 // ---------------------------------------------------------------------------
-export type App = any;
 export interface PluginManifest {
   id: string;
   name: string;
@@ -652,6 +763,8 @@ export const defaultStubs = {
   Setting,
   TFile,
   setIcon,
+  setTooltip,
+  App,
   // common (3/5)
   ItemView,
   Modal,

@@ -1,5 +1,5 @@
-// vendored from obsidian-kit@0.25.0, src/obsidian/settings_walker.ts — do not hand-edit; re-vendor via tools/sync-kit.sh
-// Import path adjusted: ./folder-suggest (verbatim, both in src/vendor/kit-obsidian/)
+// vendored from obsidian-kit@0.27.0, src/obsidian/settings_walker.ts — do not hand-edit; re-vendor via tools/sync-kit.sh
+// obsidian-kit/src/obsidian/settings_walker.ts
 //
 // Der gemeinsame Fallback-Walker fuer zweigleisige deklarative Settings-Tabs
 // (Obsidian >=1.13 fragt getSettingDefinitions() selbst ab; darunter ruft der

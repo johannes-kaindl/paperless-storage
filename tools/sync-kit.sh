@@ -15,7 +15,7 @@ stamp() { # stamp <vendored-file> <kit-relative-path>
   mv "$1.tmp" "$1"
 }
 
-for m in i18n; do
+for m in i18n error_body settings; do
   cp "$KIT/src/pure/$m.ts" "src/vendor/kit/$m.ts"
   stamp "src/vendor/kit/$m.ts" "src/pure/$m.ts"
   echo "vendored obsidian-kit@$VER/pure/$m.ts -> src/vendor/kit/$m.ts"
@@ -28,6 +28,14 @@ done
 cp "$KIT/src/obsidian/folder-suggest.ts" src/vendor/kit-obsidian/folder-suggest.ts
 stamp src/vendor/kit-obsidian/folder-suggest.ts "src/obsidian/folder-suggest.ts"
 echo "vendored obsidian-kit@$VER/obsidian/folder-suggest.ts -> src/vendor/kit-obsidian/"
+
+# settings_walker fehlte hier bis 2026-08-20, obwohl die Datei seit d17ba46 vendored
+# und in VENDOR.json von Hand nachgetragen war: ein Lauf haette sie aus der Deklaration
+# still entfernt und den Stand auf 0.25.0 einfrieren lassen. Wer ein Modul vendort,
+# traegt es hier ein — sonst ist die VENDOR.json eine Behauptung, kein Pin.
+cp "$KIT/src/obsidian/settings_walker.ts" src/vendor/kit-obsidian/settings_walker.ts
+stamp src/vendor/kit-obsidian/settings_walker.ts "src/obsidian/settings_walker.ts"
+echo "vendored obsidian-kit@$VER/obsidian/settings_walker.ts -> src/vendor/kit-obsidian/"
 
 # Der Test-Mock gehoert in denselben Sync: ein per Hand kopierter Snapshot bekommt
 # keinen Header und wird von Kit-Updates nicht erfasst — er driftet still. Ziel ist
@@ -45,7 +53,7 @@ cat > src/vendor/kit/VENDOR.json <<JSON
   "source": "obsidian-kit",
   "version": "$VER",
   "sha": "$SHA",
-  "vendored": "i18n.ts, ../kit-obsidian/folder-suggest.ts, ../../tests/vendor/kit/obsidian-mock.ts",
+  "vendored": "i18n.ts, error_body.ts, settings.ts, ../kit-obsidian/folder-suggest.ts, ../kit-obsidian/settings_walker.ts, ../../tests/vendor/kit/obsidian-mock.ts",
   "note": "Verbatim snapshot. Never hand-edit. Re-vendor via tools/sync-kit.sh. endpoint_config bewusst NICHT vendored: sein authHeaders() erzeugt 'Bearer', paperless braucht 'Token'."
 }
 JSON
