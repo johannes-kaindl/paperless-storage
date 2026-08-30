@@ -17,6 +17,22 @@
  * (CORE-TEST-02). Derselbe Fixture-Vault dient später auch `scripts/shots.ts`
  * (Skill `readme-shots`).
  *
+ * ⚠️ **Zuerst prüfen, wer sonst an Obsidian hängt.** Obsidian ist Single-Instance — ein
+ * `quit` trifft die Instanz, an der möglicherweise eine andere Session arbeitet, und zerstört
+ * deren Zustand. Der eigene Lauf ist danach sauber grün; der Schaden entsteht woanders und
+ * fällt nicht auf.
+ *
+ * ```bash
+ * lsof -nP -iTCP:9222 -sTCP:LISTEN >/dev/null && echo "läuft bereits — NICHT beenden"
+ * ```
+ *
+ * Hört der Port schon, dann **mitnutzen statt neu starten**: ein eigenes Fenster per
+ * `vault-open` über IPC öffnen, dann `attachTo("workspace", port, vault)` — der Vault-Name
+ * wählt, nicht die Reihenfolge. ⚠️ Die Port-Prüfung ersetzt die Frage nicht: sie zeigt aktive
+ * CDP-Treiber, aber nicht, wer ein Fenster offen hält oder auf den Port wartet.
+ *
+ * Erst wenn nichts läuft — oder nach Absprache mit dem, der es benutzt — gilt das Rezept unten.
+ *
  * ```bash
  * export STAGING_VAULTS_DIR=/Users/Shared/60_StagingVaults   # einmalig
  * export PAPERLESS_URL=https://paperless.jkaindl.de           # Test-Server
