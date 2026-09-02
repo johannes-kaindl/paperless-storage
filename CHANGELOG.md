@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-09-02
+
 ### Changed
 
 - **The plugin now runs on mobile** (`isDesktopOnly: false`). Nothing in the code had to
