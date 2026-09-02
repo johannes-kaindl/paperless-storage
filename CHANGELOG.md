@@ -6,13 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-09-02
+
 ### Changed
 
 - **The plugin now runs on mobile** (`isDesktopOnly: false`). Nothing in the code had to
-  change — it never used a Node or Electron API. The flag had been set defensively in
-  August because no test device was available, and stayed unmeasured since. Verified on a
-  real device: the document renders inline. See `docs/superpowers/specs/` for the three
-  lines of evidence that preceded the device test.
+  change — it never used a Node or Electron API: it fetches over Obsidian's `requestUrl`,
+  caches through the vault API, and renders in Obsidian's built-in PDF viewer. The flag
+  had been set defensively in August, when no test device was available, and stayed
+  unmeasured until now. Verified on a real device: the document renders inline, and the
+  token-authenticated fetch works there too. The three lines of evidence that preceded
+  the device test are in
+  `docs/superpowers/specs/2026-09-02-mobile-spike-ergebnis.md`, along with what each of
+  them could *not* show.
 
 ## [0.1.2] — 2026-08-06
 
