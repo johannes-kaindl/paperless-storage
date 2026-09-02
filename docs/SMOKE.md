@@ -42,9 +42,11 @@ wählt, nicht die Reihenfolge. ⚠️ Die Port-Prüfung ersetzt die Frage nicht:
 CDP-Treiber, aber nicht, wer ein Fenster offen hält oder auf den Port wartet.
 
 Erst wenn nichts läuft — oder nach Absprache mit dem, der es benutzt — gilt das Rezept unten.
+Es setzt `STAGING_VAULTS_DIR` voraus (workspace-weit in `~/.zshenv` gesetzt, Ort und
+Begründung in der Dach-`AGENTS.md`) — hier steht die Variable absichtlich ohne Wert:
+ein zweiter Beispielort in der Doku gabelt die Konvention.
 
 ```bash
-export STAGING_VAULTS_DIR=/Users/Shared/60_StagingVaults   # einmalig
 export PAPERLESS_URL=https://paperless.jkaindl.de
 export PAPERLESS_TOKEN=…
 npm run build

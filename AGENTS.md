@@ -14,7 +14,7 @@ API-Token statt über öffentliche Share-Links.
 | Design und Begründungen | `docs/superpowers/specs/2026-08-05-paperless-storage-design.md` |
 | Umsetzungsplan Phase 1 | `docs/superpowers/plans/2026-08-05-paperless-storage-phase-1.md` |
 | Dach-Konventionen (**verbindlich**) | `../AGENTS.md`, `../UI-STANDARD.md`, `../REGISTRY.md` |
-| Globale Standards | `/Users/Shared/code/_docs/CONVENTIONS.md` (PROF-OBS-Regeln) |
+| Globale Standards | `../../_docs/CONVENTIONS.md` (PROF-OBS-Regeln) — maintainer-lokal, nicht Teil dieses Repos |
 
 **Kit-first-Regel:** Vor dem Lösen eines Problems `../REGISTRY.md` und
 `../obsidian-kit/README.md` prüfen — ist es in einem Nachbar-Plugin schon gelöst, wird
@@ -57,7 +57,7 @@ der getrackte Fixture-Vault (`docs/images/fixture/`) enthält nie Zugangsdaten, 
 erst beim Vault-Aufbau aus der Umgebung in die (nicht getrackte) `data.json`.
 
 Server-Betrieb, Backup und Ressourcenlage sind hier nicht Thema; sie stehen in
-`/Users/Shared/40_Tools/paperless-ngx/CLAUDE.md` und im Vault-Hub
+`40_Tools/paperless-ngx/CLAUDE.md` (maintainer-lokal) und im Vault-Hub
 `10_Pallas/60_Bereiche/70_Lernen/paperless-ngx/paperless-ngx.md`.
 
 ## Sprache

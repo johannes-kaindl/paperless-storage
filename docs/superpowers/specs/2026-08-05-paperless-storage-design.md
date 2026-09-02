@@ -1,7 +1,7 @@
 # paperless-storage — Design
 
 **Datum:** 2026-08-05 · **Status:** Entwurf, vor Implementierung
-**Repo:** `/Users/Shared/code/obsidian-plugins/paperless-storage/`
+**Repo:** `obsidian-plugins/paperless-storage/`
 
 ## 1 Ausgangslage
 
