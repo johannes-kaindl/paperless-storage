@@ -59,7 +59,7 @@ import { join } from "node:path";
 // sechs Repos. Fehlt das Dach (fremder Checkout), bricht esbuild beim Auflösen ab — das
 // ist die gewollte Meldung. Was ihr fehlt, wird DORT ergänzt, nicht hier nachgebaut.
 import { Cdp, attachTo, pollUntil } from "../../tools/obsidian-cdp/cdp.js";
-import { buildVault, stagingVaultDir } from "../../tools/obsidian-cdp/vault.js";
+import { buildVault, requireEigenerBuild, stagingVaultDir } from "../../tools/obsidian-cdp/vault.js";
 
 const PLUGIN_ID = "paperless-storage";
 /** npm-Scripts laufen im Repo-Root. */
@@ -148,6 +148,10 @@ async function main(): Promise<void> {
   let previousHideCacheFolder: boolean | null = null;
   let previousEmbedHeight: number | null | "unset" = "unset";
   let previousCacheFolder: string | null = null;
+  // Die `ungeklaert`-Warnung gehoert in die Abschlusszeile, nicht nur nach oben ins
+  // Protokoll: wer eine Runde faehrt, liest die letzte Zeile — und ein Lauf, dessen
+  // Herkunft ungeprueft blieb, darf nicht aussehen wie einer, der belegt ist.
+  let herkunftsWarnung: string | null = null;
 
   try {
     // Ohne Fokus drosselt Chromium den Renderer (gemessen 2026-08-06 im Spike: DOM blieb
@@ -184,13 +188,44 @@ async function main(): Promise<void> {
       );
     }
 
-    const vaultName = await cdp.evaluate<string>(`return window.app?.appId ? app.vault.getName() : "";`);
-    if (!vaultName) throw new Error("Obsidians `app` ist im Renderer nicht erreichbar.");
-    console.log(`Vault: ${vaultName}\n`);
+    const vaultInfo = await cdp.evaluate<{ name: string; basePath: string; configDir: string }>(`
+      if (!window.app?.appId) return { name: "", basePath: "", configDir: "" };
+      return { name: app.vault.getName(), basePath: app.vault.adapter.basePath, configDir: app.vault.configDir };
+    `);
+    if (!vaultInfo.name) throw new Error("Obsidians `app` ist im Renderer nicht erreichbar.");
+    console.log(`Vault: ${vaultInfo.name}\n`);
 
-    const plugin = await cdp.evaluate<{ ok: boolean; version?: string; configured?: boolean }>(`
+    // Laeuft dieser Lauf gegen den eigenen Stand? Die Frage, gegen die die Versionszeile
+    // eine Zeile weiter unten strukturell blind ist: Store-Build und Repo-Build tragen
+    // dieselbe Nummer. Am 2026-08-30 standen dachweit 69 von 150 gruenen Pruefpunkten auf
+    // einem Build, der nicht belegt der Repo-Stand war.
+    //
+    // Der Pfad kommt aus der LAUFENDEN Instanz, nicht aus `stagingVaultDir(...)` — dieser
+    // Treiber dockt per `--vault` an ein beliebiges Fenster an, und ein Check gegen den
+    // Staging-Pfad pruefte dann eine Datei, die mit dem Lauf nichts zu tun hat.
+    // Geprueft wird, was gemessen wird (Lesson 2026-09-02/kuro-gamification).
+    requireEigenerBuild(
+      join(vaultInfo.basePath, vaultInfo.configDir, "plugins", PLUGIN_ID, "main.js"),
+      // Der Vergleichsstand muss frisch sein — `npm run build` baut ihn direkt davor.
+      join(REPO_ROOT, "main.js"),
+      (meldung) => {
+        herkunftsWarnung = meldung;
+        console.warn(meldung);
+      },
+    );
+
+    const plugin = await cdp.evaluate<{ ok: boolean; version?: string; aufPlatte?: string; configured?: boolean }>(`
       const p = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}];
-      return p ? { ok: true, version: p.manifest.version, configured: !!(p.settings.serverUrl && p.settings.apiToken) } : { ok: false };
+      if (!p) return { ok: false };
+      // Zwei Quellen, absichtlich: \`manifest.version\` liest Obsidian beim Vault-START,
+      // ein Deploy dazwischen aendert sie NICHT. Der Plattenstand ist die Aussage ueber
+      // die gemessene Datei (Lesson 2026-09-02/kuro-gamification).
+      let aufPlatte;
+      try {
+        const roh = await app.vault.adapter.read(app.vault.configDir + "/plugins/" + ${JSON.stringify(PLUGIN_ID)} + "/manifest.json");
+        aufPlatte = JSON.parse(roh).version;
+      } catch (e) { aufPlatte = undefined; }
+      return { ok: true, version: p.manifest.version, aufPlatte, configured: !!(p.settings.serverUrl && p.settings.apiToken) };
     `);
     if (!plugin.ok) throw new Error(`Plugin ${PLUGIN_ID} ist nicht aktiv. Erst \`npm run deploy\`.`);
     if (!plugin.configured) {
@@ -198,7 +233,9 @@ async function main(): Promise<void> {
         `Plugin ${PLUGIN_ID} hat keinen Server/Token in den Settings — Embed-/FileView-Checks bräuchten das.`,
       );
     }
-    console.log(`Plugin-Version im Vault: ${plugin.version}\n`);
+    // Nicht \"Version im Vault\" nennen: die geladene Nummer stammt vom App-Start.
+    // Weichen beide ab, ist auf Platte ein neuerer Build, den die Instanz nicht geladen hat.
+    console.log(`Plugin-Version — geladen: ${plugin.version} · auf Platte: ${plugin.aufPlatte ?? "unlesbar"}\n`);
 
     const cacheFolder = await cdp.evaluate<string>(`
       const p = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}];
@@ -581,6 +618,7 @@ async function main(): Promise<void> {
 
   const failed = results.filter((check) => !check.passed);
   console.log(`\n${results.length - failed.length}/${results.length} grün`);
+  if (herkunftsWarnung) console.log("⚠️  Herkunft des gemessenen Builds ungeprüft — s. Warnung oben.");
   if (failed.length > 0) {
     console.log("Rot:");
     for (const check of failed) console.log(`  - ${check.name}: ${check.detail}`);

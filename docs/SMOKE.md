@@ -36,26 +36,42 @@ fällt nicht auf.
 lsof -nP -iTCP:9222 -sTCP:LISTEN >/dev/null && echo "läuft bereits — NICHT beenden"
 ```
 
-Hört der Port schon, dann **mitnutzen statt neu starten**: ein eigenes Fenster per
-`vault-open` über IPC öffnen, dann `attachTo("workspace", port, vault)` — der Vault-Name
-wählt, nicht die Reihenfolge. ⚠️ Die Port-Prüfung ersetzt die Frage nicht: sie zeigt aktive
-CDP-Treiber, aber nicht, wer ein Fenster offen hält oder auf den Port wartet.
+Hört der Port schon, dann **mitnutzen statt neu starten** — und zwar ohne Quit. Gemessen
+am 2026-09-02 mit fünf fremden Vault-Fenstern auf demselben Port: ein `obsidian://`-URI mit
+**Pfad** (nicht mit Vault-Namen) öffnet den Staging-Vault als zusätzliches Fenster derselben
+Instanz, registriert ihn dabei und holt ihn nach vorn. Die fremden Sitzungen bleiben
+unberührt, der Treiber dockt per `--vault` am Namen an.
 
-Erst wenn nichts läuft — oder nach Absprache mit dem, der es benutzt — gilt das Rezept unten.
-Es setzt `STAGING_VAULTS_DIR` voraus (workspace-weit in `~/.zshenv` gesetzt, Ort und
-Begründung in der Dach-`AGENTS.md`) — hier steht die Variable absichtlich ohne Wert:
-ein zweiter Beispielort in der Doku gabelt die Konvention.
+```bash
+lsof -nP -iTCP:9222 -sTCP:LISTEN >/dev/null && echo "läuft bereits — NICHT beenden"
+curl -s http://127.0.0.1:9222/json/list | python3 -c "
+import json,sys
+for t in json.load(sys.stdin):
+    if t.get('type') == 'page': print(' ·', t.get('title'))"
+```
+
+Die zweite Zeile beantwortet die Frage, die die Port-Prüfung offenlässt: der Fenstertitel
+trägt den Vault-Namen, also sieht man, wen ein Quit träfe. ⚠️ Der CDP-Lock beantwortet sie
+**nicht** — den hält nur, wer gerade misst, und ein offenes Fenster ist keine Messung.
 
 ```bash
 export PAPERLESS_URL=https://paperless.jkaindl.de
 export PAPERLESS_TOKEN=…
-npm run build
-npm run smoke:gui -- --setup      # baut/aktualisiert den Vault
-osascript -e 'quit app "Obsidian"'
-open -a Obsidian --args --remote-debugging-port=9222
-open "obsidian://open?vault=paperless-storage"   # erster Start: Vault vorher unter
-                                                  # diesem Namen in Obsidian registrieren
+npm run smoke:gui -- --setup      # baut/aktualisiert den Vault; nur beim ersten Mal oder
+                                  # wenn sich Fixture/Zugangsdaten geändert haben
+OBSIDIAN_PLUGIN_DIR="$STAGING_VAULTS_DIR/paperless-storage/.obsidian/plugins/paperless-storage" \
+  npm run deploy                  # baut UND deployt — der Herkunfts-Guard vergleicht beides
+open "obsidian://open?path=$(python3 -c 'import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1],safe=""))' \
+  "$STAGING_VAULTS_DIR/paperless-storage/Welcome.md")"
 ```
+
+Läuft **gar kein** Obsidian, tut es der gewohnte Start
+(`open -a Obsidian --args --remote-debugging-port=9222`).
+
+⚠️ `obsidian://open?vault=<name>` funktioniert bei einem frisch gebauten Vault **nicht** — er
+steht dann noch nicht in `obsidian.json`, und der URI tut schlicht nichts. Der Pfad-URI oben
+registriert ihn; danach greift auch der Name. Den Eintrag von Hand in `obsidian.json` zu
+schreiben hilft nicht: Obsidian liest die Datei nur beim Start.
 
 Braucht mindestens ein per Token erreichbares Dokument (Default `--doc 1`).
 Referenz-Testinstanz: `https://paperless.jkaindl.de`, Dokument-ID 1 ("notes-to-media").
