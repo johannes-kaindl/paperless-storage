@@ -4,7 +4,7 @@
 directly in your notes — read in the flow of your writing, not through a link.**
 
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
-![Platform](https://img.shields.io/badge/platform-Obsidian%201.8.7%2B%20·%20desktop%20only-7c3aed)
+![Platform](https://img.shields.io/badge/platform-Obsidian%201.8.7%2B%20·%20desktop%20%26%20mobile-7c3aed)
 
 *Auch auf Deutsch verfügbar: [`README.de.md`](README.de.md).*
 
@@ -32,8 +32,9 @@ vault or shared outside it.
 
 ## Requirements
 
-- **Obsidian 1.8.7+**, desktop only (`isDesktopOnly: true` — this plugin talks to a
-  paperless-ngx server over HTTP and relies on Obsidian's desktop PDF viewer).
+- **Obsidian 1.8.7+**, desktop and mobile. The plugin uses no Node or Electron API: it
+  fetches over Obsidian's own `requestUrl`, caches through the vault API, and displays
+  documents in Obsidian's built-in PDF viewer — all of which exist on mobile too.
 - A reachable **paperless-ngx** instance and an **API token** for it (created under
   paperless' own settings).
 

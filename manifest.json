@@ -7,5 +7,5 @@
   "author": "Johannes Kaindl",
   "authorUrl": "https://github.com/johannes-kaindl",
   "helpUrl": "https://git.jkaindl.de/jkaindl/paperless-storage",
-  "isDesktopOnly": true
+  "isDesktopOnly": false
 }

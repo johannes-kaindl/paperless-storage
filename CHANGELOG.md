@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **The plugin now runs on mobile** (`isDesktopOnly: false`). Nothing in the code had to
+  change — it never used a Node or Electron API. The flag had been set defensively in
+  August because no test device was available, and stayed unmeasured since. Verified on a
+  real device: the document renders inline. See `docs/superpowers/specs/` for the three
+  lines of evidence that preceded the device test.
+
 ## [0.1.2] — 2026-08-06
 
 ### Fixed
