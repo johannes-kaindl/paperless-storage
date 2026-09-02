@@ -4,21 +4,63 @@
 set -e
 
 KIT=../obsidian-kit
+# Zweite Quelle seit obsidian-kit 2ab1bb5 ("domaenenfreie pure-Teilmenge zieht nach
+# code-kit"): i18n, settings, error_body und viele weitere liegen nicht mehr unter
+# obsidian-kit/src/pure/, sondern im Repo code-kit. Bis 2026-09-02 kopierte dieses Skript
+# sie weiter von der alten Stelle und starb an `cp: No such file` — mit einem Schaden, der
+# groesser ist als der Abbruch: `set -e` beendet den Lauf NACH der ersten Erfolgsmeldung,
+# also laufen die obsidian-gekoppelten Module und der Test-Mock nicht mehr mit, und
+# VENDOR.json wird gar nicht erst geschrieben. Die eine Datei, in der man den Stand
+# nachschlaegt, behauptet danach den alten — leise.
+CODE_KIT=../../code-kit
 VER=$(node -p "require('$KIT/package.json').version")
+CODE_VER=$(node -p "require('$CODE_KIT/package.json').version" 2>/dev/null || echo "?")
 SHA=$(git -C "$KIT" rev-parse --short HEAD)
+
+# Ein pures Modul kann in drei Schichten liegen. Statt fester Zuordnung wird gesucht —
+# die naechste Umschichtung im Kit soll dieses Skript nicht wieder toeten, sondern nur
+# einen anderen Fundort ergeben. Ausgabe: <pfad>|<quelle>|<quell-relativer-pfad>|<version>
+quelle_fuer() {
+  for kandidat in \
+    "$KIT/src/pure/$1.ts|obsidian-kit|src/pure/$1.ts|$VER" \
+    "$CODE_KIT/src/ts/pure/$1.ts|code-kit|src/ts/pure/$1.ts|$CODE_VER" \
+    "$CODE_KIT/src/ts/web/$1.ts|code-kit|src/ts/web/$1.ts|$CODE_VER"; do
+    if [ -f "${kandidat%%|*}" ]; then printf '%s\n' "$kandidat"; return 0; fi
+  done
+  return 1
+}
 
 mkdir -p src/vendor/kit src/vendor/kit-obsidian tests/vendor/kit
 
-stamp() { # stamp <vendored-file> <kit-relative-path>
-  header="// vendored from obsidian-kit@$VER, $2 — do not hand-edit; re-vendor via tools/sync-kit.sh"
+stamp() { # stamp <vendored-file> <quell-relativer-pfad> [<quelle> <version>]
+  quelle=${3:-obsidian-kit}
+  version=${4:-$VER}
+  header="// vendored from $quelle@$version, $2 — do not hand-edit; re-vendor via tools/sync-kit.sh"
   printf '%s\n' "$header" | cat - "$1" > "$1.tmp"
   mv "$1.tmp" "$1"
 }
 
-for m in i18n error_body settings; do
-  cp "$KIT/src/pure/$m.ts" "src/vendor/kit/$m.ts"
-  stamp "src/vendor/kit/$m.ts" "src/pure/$m.ts"
-  echo "vendored obsidian-kit@$VER/pure/$m.ts -> src/vendor/kit/$m.ts"
+# Erst ALLE Quellen aufloesen, dann kopieren: ein fehlendes Modul ist ein Aufbaufehler
+# und wird als solcher gemeldet, statt den Lauf auf halber Strecke abzubrechen.
+PURE_MODULE="i18n error_body settings"
+for m in $PURE_MODULE; do
+  quelle_fuer "$m" >/dev/null || {
+    echo "FEHLER: $m.ts liegt weder in $KIT/src/pure/ noch in $CODE_KIT/src/ts/{pure,web}/." >&2
+    echo "  Beide Repos muessen neben diesem liegen; seit obsidian-kit 2ab1bb5 ist code-kit" >&2
+    echo "  die Quelle der domaenenfreien Module." >&2
+    exit 2
+  }
+done
+
+for m in $PURE_MODULE; do
+  fund=$(quelle_fuer "$m")
+  pfad=$(printf '%s' "$fund" | cut -d'|' -f1)
+  quelle=$(printf '%s' "$fund" | cut -d'|' -f2)
+  rel=$(printf '%s' "$fund" | cut -d'|' -f3)
+  ver=$(printf '%s' "$fund" | cut -d'|' -f4)
+  cp "$pfad" "src/vendor/kit/$m.ts"
+  stamp "src/vendor/kit/$m.ts" "$rel" "$quelle" "$ver"
+  echo "vendored $quelle@$ver/$rel -> src/vendor/kit/$m.ts"
 done
 
 # obsidian-gekoppelte Kit-Module liegen im Kit unter src/obsidian/, nicht src/pure/ —
@@ -53,8 +95,9 @@ cat > src/vendor/kit/VENDOR.json <<JSON
   "source": "obsidian-kit",
   "version": "$VER",
   "sha": "$SHA",
-  "vendored": "i18n.ts, error_body.ts, settings.ts, ../kit-obsidian/folder-suggest.ts, ../kit-obsidian/settings_walker.ts, ../../tests/vendor/kit/obsidian-mock.ts",
-  "note": "Verbatim snapshot. Never hand-edit. Re-vendor via tools/sync-kit.sh. endpoint_config bewusst NICHT vendored: sein authHeaders() erzeugt 'Bearer', paperless braucht 'Token'."
+  "code_kit_version": "$CODE_VER",
+  "vendored": "i18n.ts, error_body.ts, settings.ts (aus code-kit, siehe Dateikopf), ../kit-obsidian/folder-suggest.ts, ../kit-obsidian/settings_walker.ts, ../../tests/vendor/kit/obsidian-mock.ts",
+  "note": "Verbatim snapshot aus ZWEI Quellen. Never hand-edit. Re-vendor via tools/sync-kit.sh. Seit obsidian-kit 2ab1bb5 liegt die domaenenfreie pure-Teilmenge in code-kit; welche Datei woher stammt, sagt ihr eigener Kopf. endpoint_config bewusst NICHT vendored: sein authHeaders() erzeugt 'Bearer', paperless braucht 'Token'."
 }
 JSON
 echo "VENDOR.json -> $VER ($SHA)"
