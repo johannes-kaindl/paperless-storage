@@ -5,7 +5,7 @@
   "minAppVersion": "1.8.7",
   "description": "Embed documents from your paperless-ngx instance directly in your notes.",
   "author": "Johannes Kaindl",
-  "authorUrl": "https://git.jkaindl.de/jkaindl",
+  "authorUrl": "https://jkaindl.de",
   "helpUrl": "https://git.jkaindl.de/jkaindl/paperless-storage",
   "isDesktopOnly": false
 }
