@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- `authorUrl` in the manifest pointed at a GitHub profile that is not publicly reachable
+  (the account is flagged; anonymous requests get a 404). It now points at the Forgejo
+  profile the code actually lives on. `authorUrl` is an availability promise — one that
+  cannot be kept is worse than a plain one.
+
 ## [0.2.0] — 2026-09-02
 
 ### Changed
