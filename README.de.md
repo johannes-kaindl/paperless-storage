@@ -41,18 +41,36 @@ Vault ab — und gibt nichts nach außen.
 
 ## Installation
 
-### Community-Plugins
-Review läuft noch. Sobald verfügbar: Einstellungen → Community-Plugins → Durchsuchen →
-„Paperless Storage".
+Dieses Plugin wird **nicht über den Community-Store verteilt**. Es liegt auf einer eigenen
+Forge, und es gibt zwei Wege, es zu bekommen.
 
-### Manuell
-`main.js`, `manifest.json` und `styles.css` aus dem
-[neuesten Release](https://git.jkaindl.de/jkaindl/paperless-storage/releases) nach
-`<vault>/.obsidian/plugins/paperless-storage/` legen und das Plugin aktivieren.
+**Empfohlen — über den [AnySource Sideloader](https://git.jkaindl.de/jkaindl/anysource-sideloader)**,
+der Plugins von beliebigen Git-Forges installiert und aktualisiert. Diesen Katalog einmal
+abonnieren:
 
-### BRAT (Beta)
-Den GitHub-Spiegel `johannes-kaindl/paperless-storage` in
-[BRAT](https://github.com/TfTHacker/obsidian42-brat) eintragen.
+```
+https://git.jkaindl.de/jkaindl/obsidian-plugin-catalog/raw/branch/main/catalog.json
+```
+
+Paperless Storage erscheint danach in der Plugin-Liste des Sideloaders und aktualisiert sich wie
+jedes andere Plugin — kein Kopieren von Hand, und jeder Download wird über eine Prüfsumme
+verifiziert. Wer nur dieses eine Plugin will, trägt statt des Katalogs dessen Repo-URL als Quelle
+ein: `https://git.jkaindl.de/jkaindl/paperless-storage`.
+
+**Von Hand**, wenn kein weiteres Plugin dazukommen soll:
+
+1. `main.js`, `manifest.json` und `styles.css` aus dem
+   [neuesten Release](https://git.jkaindl.de/jkaindl/paperless-storage/releases) herunterladen.
+2. Nach `<vault>/.obsidian/plugins/paperless-storage/` kopieren.
+3. Obsidian → Einstellungen → Community-Plugins → **Paperless Storage** aktivieren.
+
+Aktualisierungen sind dann jedes Mal Handarbeit — der Sideloader-Weg existiert genau dafür.
+
+> [!warning] BRAT funktioniert für dieses Plugin derzeit nicht
+> BRAT installiert aus GitHub, und der GitHub-Spiegel dieses Projekts ist zurzeit nicht
+> öffentlich lesbar — das Konto ist geflaggt, anonyme Anfragen bekommen ein 404. Sobald der
+> Spiegel wieder öffentlich ist, funktioniert `johannes-kaindl/paperless-storage` in
+> [BRAT](https://github.com/TfTHacker/obsidian42-brat); bis dahin der Sideloader oben.
 
 ### Aus dem Quelltext
 ```bash
