@@ -215,7 +215,22 @@ async function main(): Promise<void> {
     );
 
     const plugin = await cdp.evaluate<{ ok: boolean; version?: string; aufPlatte?: string; configured?: boolean }>(`
-      const p = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}];
+      const id = ${JSON.stringify(PLUGIN_ID)};
+      // Das Plugin NEU LADEN, bevor irgendetwas gemessen wird. \`npm run deploy\` ersetzt nur
+      // Dateien; die laufende Instanz behaelt den zuvor geladenen Code im Speicher. Ohne
+      // diesen Schritt misst der Smoke gegen ein offenes Fenster den Stand vom Fenster-
+      // Oeffnen und meldet ihn als Ergebnis fuer den gerade gebauten — so laeuft eine
+      // kaputte Version gruen durch.
+      //
+      // Der Herkunfts-Guard oben deckt das NICHT ab: er vergleicht Platte gegen Repo,
+      // nicht Speicher gegen Platte. Zwei Fragen, die gleich aussehen und es nicht sind.
+      if (app.plugins.plugins[id]) {
+        await app.plugins.disablePlugin(id);
+        await new Promise((r) => setTimeout(r, 500));
+      }
+      await app.plugins.enablePlugin(id);
+      await new Promise((r) => setTimeout(r, 1200));
+      const p = app.plugins.plugins[id];
       if (!p) return { ok: false };
       // Zwei Quellen, absichtlich: \`manifest.version\` liest Obsidian beim Vault-START,
       // ein Deploy dazwischen aendert sie NICHT. Der Plattenstand ist die Aussage ueber
@@ -233,9 +248,11 @@ async function main(): Promise<void> {
         `Plugin ${PLUGIN_ID} hat keinen Server/Token in den Settings — Embed-/FileView-Checks bräuchten das.`,
       );
     }
-    // Nicht \"Version im Vault\" nennen: die geladene Nummer stammt vom App-Start.
-    // Weichen beide ab, ist auf Platte ein neuerer Build, den die Instanz nicht geladen hat.
-    console.log(`Plugin-Version — geladen: ${plugin.version} · auf Platte: ${plugin.aufPlatte ?? "unlesbar"}\n`);
+    // Nicht \"Version im Vault\" nennen: `enablePlugin` laedt den CODE neu, das MANIFEST
+    // nicht — das liest Obsidian beim Vault-Start. Die geladene Nummer ist also eine Aussage
+    // ueber den App-Start, die Platte eine ueber die gemessene Datei. Weichen sie ab, liegt
+    // ein neuerer Build da, dessen Manifest die Instanz nicht kennt.
+    console.log(`Plugin-Version — Obsidians Speicher: ${plugin.version} · manifest.json auf Platte: ${plugin.aufPlatte ?? "nicht lesbar"}\n`);
 
     const cacheFolder = await cdp.evaluate<string>(`
       const p = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}];
