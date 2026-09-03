@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.1] — 2026-09-03
+
 ### Fixed
 
 - `authorUrl` in the manifest pointed at a GitHub profile that is not publicly reachable
