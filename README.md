@@ -40,17 +40,33 @@ vault or shared outside it.
 
 ## Install
 
-### Community Plugins
-Pending review. Once available: Settings → Community plugins → Browse → "Paperless
-Storage".
+### AnySource Sideloader (recommended)
+Add this repository as a source in
+[AnySource Sideloader](https://git.jkaindl.de/jkaindl/anysource-sideloader):
+
+```
+https://git.jkaindl.de/jkaindl/paperless-storage
+```
+
+Releases are served from Forgejo, so this works without a GitHub account and without
+waiting on the Community Store. Updates are found and applied from within Obsidian.
 
 ### Manual
 Download `main.js`, `manifest.json`, `styles.css` from the
 [latest release](https://git.jkaindl.de/jkaindl/paperless-storage/releases) into
 `<vault>/.obsidian/plugins/paperless-storage/`, then enable the plugin.
 
+### Community Plugins
+Pending review. Once available: Settings → Community plugins → Browse → "Paperless
+Storage".
+
 ### BRAT (beta)
-Add the GitHub mirror `johannes-kaindl/paperless-storage` in
+> [!warning]
+> Currently not usable. BRAT installs from GitHub, and this project's GitHub mirror is not
+> publicly readable at the moment — the account is flagged, so anonymous requests get a 404.
+> Use AnySource Sideloader above instead; it reads the Forgejo release directly.
+
+Once the mirror is public again: add `johannes-kaindl/paperless-storage` in
 [BRAT](https://github.com/TfTHacker/obsidian42-brat).
 
 ### From source
