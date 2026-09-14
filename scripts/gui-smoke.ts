@@ -34,7 +34,7 @@
  * Erst wenn nichts läuft — oder nach Absprache mit dem, der es benutzt — gilt das Rezept unten.
  *
  * ```bash
- * export STAGING_VAULTS_DIR=/Users/Shared/60_StagingVaults   # einmalig
+ * export STAGING_VAULTS_DIR="$HOME/Work/StagingVaults"   # einmalig
  * export PAPERLESS_URL=https://paperless.jkaindl.de           # Test-Server
  * export PAPERLESS_TOKEN=…
  * npm run build
