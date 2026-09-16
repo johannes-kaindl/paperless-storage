@@ -16,7 +16,7 @@
     "build": "node esbuild.config.mjs --production",
     "dev": "node esbuild.config.mjs",
     "check:pure": "node scripts/check-pure.mjs",
-    "test": "node scripts/check-no-abs-paths.mjs && npm run check:pure && vitest run",
+    "test": "node scripts/check-no-abs-paths.mjs && node scripts/check-no-nul-bytes.mjs && npm run check:pure && vitest run",
     "lint": "node scripts/check-no-inline-disables.mjs && eslint src --max-warnings 0",
     "typecheck": "tsc --noEmit",
     "lab": "node --experimental-transform-types scripts/paperless-lab.ts",
