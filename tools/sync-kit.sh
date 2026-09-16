@@ -3,7 +3,7 @@
 # Der Header entsteht erst beim Vendoring — ein blankes `cp` verliert ihn still.
 set -e
 
-KIT=../obsidian-kit
+KIT="${KIT_DIR:-../obsidian-kit}"
 # Zweite Quelle seit obsidian-kit 2ab1bb5 ("domaenenfreie pure-Teilmenge zieht nach
 # code-kit"): i18n, settings, error_body und viele weitere liegen nicht mehr unter
 # obsidian-kit/src/pure/, sondern im Repo code-kit. Bis 2026-09-02 kopierte dieses Skript
@@ -12,7 +12,7 @@ KIT=../obsidian-kit
 # also laufen die obsidian-gekoppelten Module und der Test-Mock nicht mehr mit, und
 # VENDOR.json wird gar nicht erst geschrieben. Die eine Datei, in der man den Stand
 # nachschlaegt, behauptet danach den alten — leise.
-CODE_KIT=../../code-kit
+CODE_KIT="${CODE_KIT_DIR:-../../libs/code-kit}"
 # Gelesen wird aus einer festen Ref, nicht aus dem Arbeitsstand des Nachbar-Repos
 # (CORE-META-22). Umgestellt 2026-09-07; vorher las dieses Skript per `cp` aus $KIT/
 # und stempelte mit `rev-parse HEAD` — also einen Stand, den kein Release traegt.
