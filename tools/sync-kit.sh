@@ -16,7 +16,7 @@ CODE_KIT="${CODE_KIT_DIR:-../../libs/code-kit}"
 # Gelesen wird aus einer festen Ref, nicht aus dem Arbeitsstand des Nachbar-Repos
 # (CORE-META-22). Umgestellt 2026-09-07; vorher las dieses Skript per `cp` aus $KIT/
 # und stempelte mit `rev-parse HEAD` — also einen Stand, den kein Release traegt.
-KIT_REF=${KIT_REF:-0.30.0}
+KIT_REF=${KIT_REF:-0.37.1}
 CODE_KIT_REF=${CODE_KIT_REF:-0.5.0}
 
 for paar in "$KIT|$KIT_REF" "$CODE_KIT|$CODE_KIT_REF"; do
