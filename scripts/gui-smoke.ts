@@ -153,6 +153,34 @@ async function main(): Promise<void> {
   // Herkunft ungeprueft blieb, darf nicht aussehen wie einer, der belegt ist.
   let herkunftsWarnung: string | null = null;
 
+  // Ein SIGINT mitten im Lauf ueberspringt das `finally` unten NICHT im try/catch-Sinn,
+  // sondern beendet den Node-Prozess sofort — die drei `previous*`-Vorwerte (per closure,
+  // kein Snapshot: der Handler liest sie zum Zeitpunkt des Signals) blieben ohne diesen
+  // Handler bis zur naechsten manuellen Reparatur im Smoke-Zustand des Vaults stehen.
+  let signalCleanupRunning = false;
+  const onAbortSignal = (signal: NodeJS.Signals): void => {
+    if (signalCleanupRunning) return;
+    signalCleanupRunning = true;
+    void (async () => {
+      console.log(`\n\nAbbruch durch ${signal} — raeume Vault-Zustand auf...`);
+      await cdp.evaluate(`
+        const p = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}];
+        if (p) {
+          ${previousCacheFolder !== null ? `p.settings.cacheFolder = ${JSON.stringify(previousCacheFolder)};` : ""}
+          ${previousHideCacheFolder !== null ? `p.settings.hideCacheFolder = ${JSON.stringify(previousHideCacheFolder)};` : ""}
+          ${previousEmbedHeight !== "unset" ? `p.settings.embedHeight = ${JSON.stringify(previousEmbedHeight)};` : ""}
+          await p.saveSettings();
+          if (p.applyCacheFolderVisibility) p.applyCacheFolderVisibility();
+        }
+        return true;
+      `).catch(() => { console.log("  ! Aufraeumen im Renderer fehlgeschlagen — Vault von Hand pruefen"); });
+      cdp.close();
+      process.exit(130);
+    })();
+  };
+  process.on("SIGINT", onAbortSignal);
+  process.on("SIGTERM", onAbortSignal);
+
   try {
     // Ohne Fokus drosselt Chromium den Renderer (gemessen 2026-08-06 im Spike: DOM blieb
     // leer, obwohl `app.workspace` den Zustand korrekt meldete — man debuggt dann ein
@@ -524,6 +552,20 @@ async function main(): Promise<void> {
     previousCacheFolder = await cdp.evaluate<string>(`
       return app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}].settings.cacheFolder;
     `);
+    // 8a — ein per Ctrl-C abgebrochener Vorlauf haette `previousCacheFolder` NIE
+    // zurueckgeschrieben; der hier gelesene Wert waere dann schon der Smoke-Ordner statt des
+    // echten. SMOKE_CACHE_FOLDER ist ein unwahrscheinlicher echter Ordnername — als Signatur
+    // fuer genau dieses Leftover-Muster tragbar (anders als hideCacheFolder/embedHeight, die
+    // beide Werte legitim vom Nutzer stammen koennten).
+    const kaputterCacheFolder = previousCacheFolder === SMOKE_CACHE_FOLDER;
+    record(
+      "8a. Kein liegen gebliebener Smoke-Cache-Ordner aus einem abgebrochenen Vorlauf",
+      !kaputterCacheFolder,
+      kaputterCacheFolder
+        ? `cacheFolder trug noch ${SMOKE_CACHE_FOLDER} — auf leer (Plugin-Default) zurueckgesetzt`
+        : "Ausgangszustand unauffaellig",
+    );
+    if (kaputterCacheFolder) previousCacheFolder = "";
     interface TrashProbe {
       ok: boolean;
       reason?: string;
@@ -631,6 +673,10 @@ async function main(): Promise<void> {
         .catch(() => undefined);
     }
     cdp.close();
+    // Abmelden, sonst haengt ein SPAETES Signal (nach normalem Abschluss, cdp schon zu) den
+    // Prozess in onAbortSignal an einer toten Verbindung auf.
+    process.off("SIGINT", onAbortSignal);
+    process.off("SIGTERM", onAbortSignal);
   }
 
   const failed = results.filter((check) => !check.passed);
