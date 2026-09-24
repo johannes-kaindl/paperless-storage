@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.2] — 2026-09-24
+
 ### Changed
 
 - `authorUrl` in the manifest points at the GitHub profile again, now that the plugin returns to the Community Store.
