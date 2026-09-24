@@ -8,9 +8,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 
-- `authorUrl` now points at the author's site rather than the forge profile — aligning with
-  the workspace-wide convention set after the GitHub move. The forge is already reachable
-  through `helpUrl`.
+- `authorUrl` in the manifest points at the GitHub profile again, now that the plugin returns to the Community Store.
 
 ## [0.2.1] — 2026-09-03
 
