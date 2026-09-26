@@ -3,6 +3,6 @@
   "version": "0.37.1",
   "sha": "4cfa746",
   "code_kit_version": "0.5.0",
-  "vendored": "i18n.ts, error_body.ts, settings.ts (aus code-kit, siehe Dateikopf), ../kit-obsidian/folder-suggest.ts, ../kit-obsidian/settings_walker.ts, ../../tests/vendor/kit/obsidian-mock.ts",
+  "vendored": "i18n.ts, error_body.ts, settings.ts (aus code-kit, siehe Dateikopf), ../kit-obsidian/folder-suggest.ts, ../kit-obsidian/settings_walker.ts, ../kit-obsidian/help-setting.ts (Kit 0.43.0, bcd1805), ../../tests/vendor/kit/obsidian-mock.ts",
   "note": "Verbatim snapshot aus ZWEI Quellen. Never hand-edit. Re-vendor via tools/sync-kit.sh. Seit obsidian-kit 2ab1bb5 liegt die domaenenfreie pure-Teilmenge in code-kit; welche Datei woher stammt, sagt ihr eigener Kopf. endpoint_config bewusst NICHT vendored: sein authHeaders() erzeugt 'Bearer', paperless braucht 'Token'."
 }

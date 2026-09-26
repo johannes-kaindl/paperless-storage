@@ -25,6 +25,7 @@ import {
 import type { PaperlessSettings } from "../core/settings";
 import { renderSettingDefinitions } from "../vendor/kit-obsidian/settings_walker";
 import { FolderSuggest } from "../vendor/kit-obsidian/folder-suggest";
+import { HELP_SETTING_TEXTS_EN, githubHelpUrls, helpSettingDefinition } from "../vendor/kit-obsidian/help-setting";
 
 export interface SettingsHost extends Plugin {
   settings: PaperlessSettings;
@@ -46,6 +47,9 @@ export class PaperlessSettingTab extends PluginSettingTab {
   // Tippfehler bricht den Build, statt zur Laufzeit stumm ins Leere zu greifen.
   getSettingDefinitions(): SettingDefinitionItem<keyof PaperlessSettings>[] {
     return [
+      // UI-STANDARD §8: die Hilfe-Zeile steht vor jeder anderen Zeile. Die Settings sind nur
+      // englisch, also auch die Zeile (kein DE-Text über englischen Zeilen).
+      helpSettingDefinition({ ...githubHelpUrls("paperless-storage"), texts: HELP_SETTING_TEXTS_EN }),
       {
         name: "Server URL",
         desc: "Base URL of your paperless-ngx instance, e.g. https://paperless.example.org",

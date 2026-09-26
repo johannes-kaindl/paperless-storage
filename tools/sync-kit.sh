@@ -18,8 +18,11 @@ CODE_KIT="${CODE_KIT_DIR:-../../libs/code-kit}"
 # und stempelte mit `rev-parse HEAD` — also einen Stand, den kein Release traegt.
 KIT_REF=${KIT_REF:-0.37.1}
 CODE_KIT_REF=${CODE_KIT_REF:-0.5.0}
+# help-setting.ts (UI-STANDARD §8, Hilfe-Zeile) auf einem EIGENEN Pin: es zieht mit 0.43.0 ein,
+# die uebrigen Module behalten KIT_REF. Ein Pin, der nur fuer dieses eine Modul gilt.
+KIT_HELP_REF=${KIT_HELP_REF:-0.43.0}
 
-for paar in "$KIT|$KIT_REF" "$CODE_KIT|$CODE_KIT_REF"; do
+for paar in "$KIT|$KIT_REF" "$KIT|$KIT_HELP_REF" "$CODE_KIT|$CODE_KIT_REF"; do
   repo=${paar%%|*}; ref=${paar##*|}
   git -C "$repo" rev-parse --verify --quiet "$ref^{commit}" >/dev/null \
     || { echo "FEHLER: Ref '$ref' existiert nicht in $repo (KIT_REF/CODE_KIT_REF setzen)." >&2; exit 1; }
@@ -115,6 +118,14 @@ vendor_aus_ref src/vendor/kit-obsidian/settings_walker.ts "$KIT" "$KIT_REF" src/
 stamp src/vendor/kit-obsidian/settings_walker.ts "src/obsidian/settings_walker.ts"
 echo "vendored obsidian-kit@$VER/obsidian/settings_walker.ts -> src/vendor/kit-obsidian/"
 
+# help-setting.ts: eigener Pin (KIT_HELP_REF), Existenz in genau dieser Ref, bevor geschrieben wird.
+git -C "$KIT" cat-file -e "$KIT_HELP_REF:src/obsidian/help-setting.ts" 2>/dev/null \
+  || { echo "FEHLER: src/obsidian/help-setting.ts fehlt in obsidian-kit@$KIT_HELP_REF (KIT_HELP_REF setzen)." >&2; exit 1; }
+HELP_SHA=$(git -C "$KIT" rev-parse --short "$KIT_HELP_REF^{commit}")
+vendor_aus_ref src/vendor/kit-obsidian/help-setting.ts "$KIT" "$KIT_HELP_REF" src/obsidian/help-setting.ts
+stamp src/vendor/kit-obsidian/help-setting.ts "src/obsidian/help-setting.ts" obsidian-kit "$KIT_HELP_REF"
+echo "vendored obsidian-kit@$KIT_HELP_REF/obsidian/help-setting.ts -> src/vendor/kit-obsidian/"
+
 # Der Test-Mock gehoert in denselben Sync: ein per Hand kopierter Snapshot bekommt
 # keinen Header und wird von Kit-Updates nicht erfasst — er driftet still. Ziel ist
 # tests/vendor/, NICHT src/vendor/: der Community-Store-Scanner (Developer Dashboard)
@@ -132,7 +143,7 @@ cat > src/vendor/kit/VENDOR.json <<JSON
   "version": "$VER",
   "sha": "$SHA",
   "code_kit_version": "$CODE_VER",
-  "vendored": "i18n.ts, error_body.ts, settings.ts (aus code-kit, siehe Dateikopf), ../kit-obsidian/folder-suggest.ts, ../kit-obsidian/settings_walker.ts, ../../tests/vendor/kit/obsidian-mock.ts",
+  "vendored": "i18n.ts, error_body.ts, settings.ts (aus code-kit, siehe Dateikopf), ../kit-obsidian/folder-suggest.ts, ../kit-obsidian/settings_walker.ts, ../kit-obsidian/help-setting.ts (Kit $KIT_HELP_REF, $HELP_SHA), ../../tests/vendor/kit/obsidian-mock.ts",
   "note": "Verbatim snapshot aus ZWEI Quellen. Never hand-edit. Re-vendor via tools/sync-kit.sh. Seit obsidian-kit 2ab1bb5 liegt die domaenenfreie pure-Teilmenge in code-kit; welche Datei woher stammt, sagt ihr eigener Kopf. endpoint_config bewusst NICHT vendored: sein authHeaders() erzeugt 'Bearer', paperless braucht 'Token'."
 }
 JSON

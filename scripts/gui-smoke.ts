@@ -544,6 +544,35 @@ async function main(): Promise<void> {
       settings.ok ? `input.type: ${settings.tokenInputType ?? "(kein Eingabefeld)"}` : "Tab nicht geöffnet",
     );
 
+    // --- 7b. Hilfe-Zeile (UI-STANDARD §8) ------------------------------------
+    // Position und Bedienung, nicht Wortlaut: die ERSTE Zeile des Tabs traegt einen Text-Knopf und
+    // den Icon-Knopf (`bug`, Tooltip als Name). Punkt 6 belegt nur, DASS die Zeile gezeichnet wird;
+    // dass sie OBEN steht, misst erst dieser Punkt.
+    const hilfe = await cdp.evaluate<{ ok: boolean; name?: string; knoepfe?: number; icon?: string | null }>(`
+      const id = ${JSON.stringify(PLUGIN_ID)};
+      const tab = (app.setting?.pluginTabs ?? []).find((t) => t.id === id || t.plugin?.manifest?.id === id);
+      if (!tab) return { ok: false };
+      app.setting.open();
+      app.setting.openTabById(id);
+      const scope = () => tab.containerEl ?? app.setting.containerEl;
+      const deadline = Date.now() + 8000;
+      while (Date.now() < deadline && !scope().querySelector(".setting-item")) await new Promise((r) => setTimeout(r, 100));
+      const erste = scope().querySelector(".setting-item");
+      const out = erste ? {
+        ok: true,
+        name: erste.querySelector(".setting-item-name")?.textContent?.trim() ?? "",
+        knoepfe: erste.querySelectorAll("button").length,
+        icon: erste.querySelector(".extra-setting-button")?.getAttribute("aria-label") ?? null,
+      } : { ok: false };
+      app.setting.close();
+      return out;
+    `);
+    record(
+      "7b. Die Hilfe-Zeile steht als erste Zeile im Tab, mit Text-Knopf und Icon-Knopf",
+      hilfe.ok === true && !!hilfe.name && hilfe.knoepfe === 1 && !!hilfe.icon,
+      hilfe.ok ? `erste Zeile „${hilfe.name}“ · Text-Knöpfe ${hilfe.knoepfe} · Icon „${hilfe.icon ?? "keiner"}“` : "Tab nicht geöffnet",
+    );
+
     // --- 8. Cache-Leeren geht in den Papierkorb, nicht in die endgueltige Loeschung ---
     // Regressions-Gegenstand von aab247a (0.1.2): `fileManager.trashFile` respektiert die
     // Papierkorb-Einstellung des Nutzers, `vault.delete` ignoriert sie. Welche der beiden
