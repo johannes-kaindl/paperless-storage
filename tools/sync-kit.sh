@@ -21,8 +21,11 @@ CODE_KIT_REF=${CODE_KIT_REF:-0.5.0}
 # help-setting.ts (UI-STANDARD §8, Hilfe-Zeile) auf einem EIGENEN Pin: es zieht mit 0.43.0 ein,
 # die uebrigen Module behalten KIT_REF. Ein Pin, der nur fuer dieses eine Modul gilt.
 KIT_HELP_REF=${KIT_HELP_REF:-0.43.0}
+# folder-hide (pure + obsidian, Cache-Ordner im Explorer ausblenden) auf einem EIGENEN Pin, gleiche
+# Bauart wie KIT_HELP_REF: die Module kamen mit 0.42.0 ins Kit, gepinnt wird 0.43.0.
+KIT_FOLDER_HIDE_REF=${KIT_FOLDER_HIDE_REF:-0.43.0}
 
-for paar in "$KIT|$KIT_REF" "$KIT|$KIT_HELP_REF" "$CODE_KIT|$CODE_KIT_REF"; do
+for paar in "$KIT|$KIT_REF" "$KIT|$KIT_HELP_REF" "$KIT|$KIT_FOLDER_HIDE_REF" "$CODE_KIT|$CODE_KIT_REF"; do
   repo=${paar%%|*}; ref=${paar##*|}
   git -C "$repo" rev-parse --verify --quiet "$ref^{commit}" >/dev/null \
     || { echo "FEHLER: Ref '$ref' existiert nicht in $repo (KIT_REF/CODE_KIT_REF setzen)." >&2; exit 1; }
@@ -68,7 +71,7 @@ vendor_aus_ref() {
   mv "$1.tmp" "$1"
 }
 
-mkdir -p src/vendor/kit src/vendor/kit-obsidian tests/vendor/kit
+mkdir -p src/vendor/kit src/vendor/kit-obsidian src/vendor/pure tests/vendor/kit
 
 stamp() { # stamp <vendored-file> <quell-relativer-pfad> [<quelle> <version>]
   quelle=${3:-obsidian-kit}
@@ -126,6 +129,19 @@ vendor_aus_ref src/vendor/kit-obsidian/help-setting.ts "$KIT" "$KIT_HELP_REF" sr
 stamp src/vendor/kit-obsidian/help-setting.ts "src/obsidian/help-setting.ts" obsidian-kit "$KIT_HELP_REF"
 echo "vendored obsidian-kit@$KIT_HELP_REF/obsidian/help-setting.ts -> src/vendor/kit-obsidian/"
 
+# folder-hide: eigener Pin (KIT_FOLDER_HIDE_REF). Die obsidian-Datei importiert `../pure/folder-hide`;
+# damit sie VERBATIM bleibt (kein sed auf vendortem Code), landet die pure Datei unter
+# src/vendor/pure/ statt src/vendor/kit/ — dort loest der Import des Kits ohne Anpassung auf.
+for datei in "pure/folder-hide.ts:src/vendor/pure/folder-hide.ts" "obsidian/folder-hide.ts:src/vendor/kit-obsidian/folder-hide.ts"; do
+  q=${datei%%:*}; ziel=${datei##*:}
+  git -C "$KIT" cat-file -e "$KIT_FOLDER_HIDE_REF:src/$q" 2>/dev/null \
+    || { echo "FEHLER: src/$q fehlt in obsidian-kit@$KIT_FOLDER_HIDE_REF (KIT_FOLDER_HIDE_REF setzen)." >&2; exit 1; }
+  vendor_aus_ref "$ziel" "$KIT" "$KIT_FOLDER_HIDE_REF" "src/$q"
+  stamp "$ziel" "src/$q" obsidian-kit "$KIT_FOLDER_HIDE_REF"
+  echo "vendored obsidian-kit@$KIT_FOLDER_HIDE_REF/$q -> $ziel"
+done
+FOLDER_HIDE_SHA=$(git -C "$KIT" rev-parse --short "$KIT_FOLDER_HIDE_REF^{commit}")
+
 # Der Test-Mock gehoert in denselben Sync: ein per Hand kopierter Snapshot bekommt
 # keinen Header und wird von Kit-Updates nicht erfasst — er driftet still. Ziel ist
 # tests/vendor/, NICHT src/vendor/: der Community-Store-Scanner (Developer Dashboard)
@@ -143,7 +159,7 @@ cat > src/vendor/kit/VENDOR.json <<JSON
   "version": "$VER",
   "sha": "$SHA",
   "code_kit_version": "$CODE_VER",
-  "vendored": "i18n.ts, error_body.ts, settings.ts (aus code-kit, siehe Dateikopf), ../kit-obsidian/folder-suggest.ts, ../kit-obsidian/settings_walker.ts, ../kit-obsidian/help-setting.ts (Kit $KIT_HELP_REF, $HELP_SHA), ../../tests/vendor/kit/obsidian-mock.ts",
+  "vendored": "i18n.ts, error_body.ts, settings.ts (aus code-kit, siehe Dateikopf), ../kit-obsidian/folder-suggest.ts, ../kit-obsidian/settings_walker.ts, ../kit-obsidian/help-setting.ts (Kit $KIT_HELP_REF, $HELP_SHA), ../pure/folder-hide.ts + ../kit-obsidian/folder-hide.ts (Kit $KIT_FOLDER_HIDE_REF, $FOLDER_HIDE_SHA), ../../tests/vendor/kit/obsidian-mock.ts",
   "note": "Verbatim snapshot aus ZWEI Quellen. Never hand-edit. Re-vendor via tools/sync-kit.sh. Seit obsidian-kit 2ab1bb5 liegt die domaenenfreie pure-Teilmenge in code-kit; welche Datei woher stammt, sagt ihr eigener Kopf. endpoint_config bewusst NICHT vendored: sein authHeaders() erzeugt 'Bearer', paperless braucht 'Token'."
 }
 JSON

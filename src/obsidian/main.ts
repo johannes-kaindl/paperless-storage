@@ -12,12 +12,13 @@ import { CacheStore } from "./cache-store";
 import { registerPaperlessEmbed } from "./embed";
 import { PaperlessFileView, VIEW_TYPE_PAPERLESS } from "./file-view";
 import { PaperlessSettingTab } from "./settings-tab";
-import { applyCacheFolderVisibility, removeCacheFolderVisibility } from "./hide-folder";
+import { installFolderHide, type FolderHideHandle } from "../vendor/kit-obsidian/folder-hide";
 import { runTitleSync } from "./title-sync-runner";
 import { InsertDocumentModal } from "./insert-modal";
 
 export default class PaperlessStoragePlugin extends Plugin {
   settings: PaperlessSettings = DEFAULT_SETTINGS;
+  private folderHide: FolderHideHandle | null = null;
 
   async onload(): Promise<void> {
     this.settings = mergeSettings(DEFAULT_SETTINGS, await this.loadData());
@@ -39,8 +40,12 @@ export default class PaperlessStoragePlugin extends Plugin {
 
     // Nicht-werfende Registrierungen zuerst (PROF-OBS-13).
     this.addSettingTab(new PaperlessSettingTab(this.app, this));
-    this.applyCacheFolderVisibility();
-    this.register(removeCacheFolderVisibility);
+    // Nach onLayoutReady: der Griff braucht rootSplit.doc, das Dokument des Datei-Explorers.
+    this.app.workspace.onLayoutReady(() => this.applyCacheFolderVisibility());
+    this.register(() => {
+      this.folderHide?.remove();
+      this.folderHide = null;
+    });
 
     const unregister = registerPaperlessEmbed(deps);
     if (unregister) {
@@ -99,15 +104,21 @@ export default class PaperlessStoragePlugin extends Plugin {
     });
   }
 
+  /** Blendet den Cache-Ordner samt Inhalt im Datei-Explorer aus bzw. ein (Kit `folder-hide`).
+   *  Erster Aufruf installiert das Stylesheet, jeder weitere aktualisiert es. Ziel ist das
+   *  Dokument des Haupt-Workspace (`rootSplit.doc`), nicht `activeDocument` — das waere im
+   *  ausgelagerten Einstellungsfenster (Obsidian >=1.13) oder einem Pop-out das falsche. */
   applyCacheFolderVisibility(): void {
-    // Nicht activeDocument: das waere im ausgelagerten Einstellungsfenster (Obsidian
-    // >=1.13) das falsche Dokument (Befund 3, Gesamt-Review Phase 2). Das Dokument, das
-    // den Datei-Explorer besitzt, ist das des Haupt-Workspace.
-    applyCacheFolderVisibility(
-      this.app.workspace.containerEl.ownerDocument,
-      resolveCacheFolder(this.settings),
-      this.settings.hideCacheFolder,
-    );
+    const folder = resolveCacheFolder(this.settings);
+    const hide = this.settings.hideCacheFolder;
+    if (this.folderHide) {
+      this.folderHide.update(folder, hide);
+      return;
+    }
+    // Kosmetisch: ein Fehler beim Anhaengen darf das Laden nie abbrechen (Kit meldet ihn hier).
+    this.folderHide = installFolderHide(this.app.workspace.rootSplit.doc, folder, hide, (e) => {
+      console.warn("paperless-storage: Cache-Ordner konnte nicht ausgeblendet werden", e);
+    });
   }
 
   async saveSettings(): Promise<void> {

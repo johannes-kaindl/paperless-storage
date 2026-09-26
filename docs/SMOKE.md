@@ -90,9 +90,12 @@ npm run smoke:gui -- --port 9222 --vault paperless-storage
 
 ## Prüfpunkte
 
-1. Cache-Ordner ausgeblendet bei `hideCacheFolder=true` (`hide-folder.ts`, Constructable
-   Stylesheet — `.nav-folder-title[data-path=…]` auf `display:none`).
+1. Cache-Ordner ausgeblendet bei `hideCacheFolder=true` (Kit `folder-hide`, Constructable
+   Stylesheet — `.nav-folder-title[data-path=…]` auf `display:none`; bis 0.3.0 eine eigene
+   `hide-folder.ts`).
 2. Cache-Ordner wieder sichtbar bei `hideCacheFolder=false`.
+2b. Die Kinder des aufgeklappten Ordners (`.nav-folder-children`) sind mit ausgeblendet.
+2c. Das Stylesheet hängt am Hauptfenster-Dokument (`rootSplit.doc`), auch bei offenem Pop-out.
 3. `![[…paperless]]`-Embed lädt Obsidians eigenen PDF-Viewer (`embedRegistry`-Adapter,
    Signal: `.pdf-toolbar` im `.internal-embed`-Span).
 4. Embed-Höhe (`embedHeight`-Setting) bleibt stabil, auch nachdem Obsidians PDF-Viewer

@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- **The cache folder is now hidden together with its contents.** Hiding uses the Kit's `folder-hide` module (`obsidian-kit` 0.43.0) instead of a local copy. The old rule only hid the folder row; if the folder was expanded in the file explorer, its cache files stayed visible. The stylesheet is attached to the main window's document (`rootSplit.doc`) and created in that window's own realm, so a pop-out window or the separate settings window can no longer receive it by mistake. It is installed once the workspace layout is ready.
+
 ## [0.3.0] — 2026-09-26
 
 ### Added

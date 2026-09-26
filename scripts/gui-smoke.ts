@@ -296,7 +296,7 @@ async function main(): Promise<void> {
       return app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}].settings.embedHeight;
     `);
 
-    // --- 1./2. Cache-Ordner-Sichtbarkeit (hide-folder.ts, Constructable Stylesheet) ---
+    // --- 1./2. Cache-Ordner-Sichtbarkeit (Kit folder-hide, Constructable Stylesheet) ---
     // Mutation und Wartephase sind getrennt: `pollUntil` fragt Node-seitig in eigenen,
     // kurzen `Runtime.evaluate`-Aufrufen nach — `Cdp.send` bricht sonst nach 30 s ab.
     await cdp.evaluate(`
@@ -341,6 +341,61 @@ async function main(): Promise<void> {
       "2. Cache-Ordner wieder sichtbar bei hideCacheFolder=false",
       visibleState !== null && visibleState !== "none",
       visibleState === null ? "Ordner-Element nicht im Explorer gefunden" : `display: ${visibleState}`,
+    );
+
+    // --- 2b. Die Kinder des Ordners sind mit ausgeblendet (Kit folder-hide, ab Kit 0.43.0) ---
+    // Ein aufgeklappter Ordner hat sein `.nav-folder-children` als Geschwister des Titels; nur den
+    // Titel zu verstecken liess die Cache-Dateien im Explorer stehen. Ein zugeklappter Ordner
+    // hat gar kein Kinder-Element — deshalb vorher aufklappen (fileItems[..].setCollapsed).
+    await cdp.evaluate(`
+      const p = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}];
+      p.settings.hideCacheFolder = true;
+      await p.saveSettings();
+      p.applyCacheFolderVisibility();
+      const view = app.workspace.getLeavesOfType("file-explorer")[0]?.view;
+      await view?.fileItems?.[${JSON.stringify(cacheFolder)}]?.setCollapsed?.(false);
+      return true;
+    `);
+    const childrenState = await pollUntil<string>(
+      cdp,
+      `
+        const t = document.querySelector('.nav-folder-title[data-path="${cacheFolder}"]');
+        const k = t?.nextElementSibling;
+        if (!k || !k.classList.contains("nav-folder-children")) return null;
+        return getComputedStyle(k).display;
+      `,
+      8000,
+    );
+    record(
+      "2b. Kinder des ausgeblendeten Cache-Ordners sind mit ausgeblendet",
+      childrenState === "none",
+      childrenState === null ? "aufgeklappter Ordner hat kein .nav-folder-children" : `display: ${childrenState}`,
+    );
+
+    // --- 2c. Das Stylesheet haengt am Hauptfenster, auch wenn ein Pop-out offen ist ---
+    // Nach dem Umbau auf rootSplit.doc gemessen: das Blatt gehoert an das Dokument des
+    // Datei-Explorers, nie an das Pop-out (dort waere der Ordner weiter sichtbar).
+    const popout = await cdp.evaluate<string>(`
+      const p = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}];
+      const leaf = app.workspace.openPopoutLeaf();
+      try {
+        await new Promise((r) => setTimeout(r, 1500));
+        const popDoc = leaf.view.containerEl.ownerDocument;
+        const mainDoc = app.workspace.rootSplit.doc;
+        p.settings.hideCacheFolder = false; p.applyCacheFolderVisibility();
+        p.settings.hideCacheFolder = true;  p.applyCacheFolderVisibility();
+        const mine = (d) => [...d.adoptedStyleSheets].some((s) =>
+          [...s.cssRules].some((r) => r.cssText.includes(${JSON.stringify(cacheFolder)})));
+        return JSON.stringify({ separate: popDoc !== mainDoc, main: mine(mainDoc), pop: mine(popDoc) });
+      } finally {
+        leaf.detach();
+      }
+    `);
+    const pop = JSON.parse(popout) as { separate: boolean; main: boolean; pop: boolean };
+    record(
+      "2c. Blatt haengt am Hauptfenster-Dokument, nicht am Pop-out",
+      pop.separate && pop.main && !pop.pop,
+      `Pop-out-Dokument getrennt: ${pop.separate} · Blatt im Hauptfenster: ${pop.main} · im Pop-out: ${pop.pop}`,
     );
 
     // Zurück auf den Vorwert, bevor der Embed-Teil beginnt (kosmetisch sauberer Vault
