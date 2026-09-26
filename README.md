@@ -17,6 +17,8 @@ paperwork that's the wrong trade-off. This plugin embeds documents by fetching t
 with your **API token** instead, so nothing beyond a small stub file is stored in the
 vault or shared outside it.
 
+<p align="center"><img src="https://raw.githubusercontent.com/johannes-kaindl/paperless-storage/main/docs/images/hero.png" width="820" alt="An Obsidian note with a paperless-ngx document embedded in the text: the PDF viewer shows the Service Agreement between two paragraphs"></p>
+
 ## Features
 
 - **Inline PDF embeds** — `![[Mietvertrag.paperless]]` renders the document right in
@@ -75,6 +77,12 @@ cd paperless-storage && npm install && npm run build
    title on the server.
 6. **Clear document cache** removes the downloaded PDFs.
 
+### What it looks like
+
+<img src="https://raw.githubusercontent.com/johannes-kaindl/paperless-storage/main/docs/images/insert-document.png" width="820" alt="The Insert document search window with four results for the query 2026">
+
+<img src="https://raw.githubusercontent.com/johannes-kaindl/paperless-storage/main/docs/images/offline-cache.png" width="820" alt="The same note with the server switched off: a notice above the PDF says the server is unreachable and the cached copy is shown">
+
 ### A note on renaming
 
 Obsidian shows its own "Update internal links?" confirmation dialog when a `.paperless`
@@ -84,6 +92,8 @@ links" enabled in Obsidian's own settings. If a rename command appears to hang, 
 for that dialog.
 
 ### Configuration
+
+<img src="https://raw.githubusercontent.com/johannes-kaindl/paperless-storage/main/docs/images/settings.png" width="820" alt="The Paperless Storage settings tab: server URL, masked API token, cache folder, hide cache folder toggle, file version and default embed height">
 
 | Setting | Effect | Default |
 |---|---|---|

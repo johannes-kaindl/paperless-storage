@@ -7,3 +7,6 @@ data.json
 
 # Gebuendelter GUI-Smoke-Treiber (npm run smoke:gui) — Quelle ist scripts/gui-smoke.ts
 .gui-smoke.mjs
+
+# Gebuendelter Aufnahme-Treiber (npm run shots)
+.shots.mjs

@@ -19,6 +19,8 @@ Verträge oder Arztbriefe ist das der falsche Handel. Dieses Plugin holt Dokumen
 stattdessen mit deinem **API-Token** und legt außer einer kleinen Stub-Datei nichts im
 Vault ab — und gibt nichts nach außen.
 
+<p align="center"><img src="https://raw.githubusercontent.com/johannes-kaindl/paperless-storage/main/docs/images/hero.png" width="820" alt="Eine Obsidian-Notiz mit eingebettetem paperless-ngx-Dokument: der PDF-Betrachter zeigt die Vereinbarung zwischen zwei Absätzen"></p>
+
 ## Features
 
 - **PDF-Einbettung in der Notiz** — `![[Mietvertrag.paperless]]` rendert das Dokument
@@ -65,13 +67,19 @@ cd paperless-storage && npm install && npm run build
 
 ## Verwendung
 
-1. **Einstellungen → Paperless Storage** öffnen und Server-URL sowie API-Token
+1. **Einstellungen → Paperless Storage** öffnen und Server URL sowie API token
    eintragen.
 2. **Paperless Storage: Insert document** aus der Befehlspalette ausführen, in der paperless-Bibliothek suchen und die Einbettung an der Cursorposition einsetzen. (Die Befehlsnamen sind englisch.)
 3. Die Einbettung lädt das Dokument beim ersten Anzeigen herunter und legt es im Cache ab; danach rendert sie aus dem Cache, auch offline. Für eine neuere Fassung **Clear document cache** ausführen.
 4. Ein Klick auf eine `.paperless`-Datei im Dateibaum öffnet sie in einem eigenen Tab, genau wie eine native Datei.
 5. **Synchronize document titles** benennt Stub-Dateien nach ihrem aktuellen Titel auf dem Server um.
 6. **Clear document cache** entfernt die heruntergeladenen PDFs.
+
+### So sieht es aus
+
+<img src="https://raw.githubusercontent.com/johannes-kaindl/paperless-storage/main/docs/images/insert-document.png" width="820" alt="Das Suchfenster von „Insert document“ mit vier Treffern für die Eingabe 2026">
+
+<img src="https://raw.githubusercontent.com/johannes-kaindl/paperless-storage/main/docs/images/offline-cache.png" width="820" alt="Dieselbe Notiz bei abgeschaltetem Server: ein Hinweis über dem PDF nennt die fehlende Verbindung und zeigt die gecachte Fassung">
 
 ### Zum Umbenennen
 
@@ -83,14 +91,16 @@ eingefroren, lohnt der Blick auf diesen Dialog.
 
 ### Konfiguration
 
-| Einstellung | Wirkung | Standard |
+<img src="https://raw.githubusercontent.com/johannes-kaindl/paperless-storage/main/docs/images/settings.png" width="820" alt="Der Einstellungen-Tab von Paperless Storage: Server-URL, maskierter API-Token, Cache-Ordner, Schalter zum Ausblenden, Dateiversion und Standardhöhe">
+
+| Einstellung (Bezeichnung in Obsidian, englisch) | Wirkung | Standard |
 |---|---|---|
-| Server-URL | Basis-URL deiner paperless-ngx-Instanz. | *(leer)* |
-| API-Token | Token für diese Instanz, in paperless selbst angelegt. | *(leer)* |
-| Cache-Ordner | Vault-Ordner, in dem heruntergeladene PDFs liegen. | `_paperless-storage/` |
-| Cache-Ordner ausblenden | Blendet den Cache-Ordner im Dateibaum aus (er bleibt ein normaler, synchronisierbarer Ordner — nur die Anzeige wird unterdrückt). | an |
-| Dateiversion | Welche Fassung eingebettet und gecacht wird — das durchsuchbare Archiv-PDF oder die Originaldatei. | Archiv |
-| Standardhöhe der Einbettung | Feste Höhe in Pixeln für eingebettete Dokumente; leer lassen, damit Obsidian selbst skaliert. | *(leer)* |
+| Server URL | Basis-URL deiner paperless-ngx-Instanz. | *(leer)* |
+| API token | Token für diese Instanz, in paperless selbst angelegt. | *(leer)* |
+| Cache folder | Vault-Ordner, in dem heruntergeladene PDFs liegen. | `_paperless-storage/` |
+| Hide cache folder | Blendet den Cache-Ordner im Dateibaum aus (er bleibt ein normaler, synchronisierbarer Ordner — nur die Anzeige wird unterdrückt). | an |
+| File version | Welche Fassung eingebettet und gecacht wird — das durchsuchbare Archiv-PDF oder die Originaldatei. | Archiv |
+| Default embed height | Feste Höhe in Pixeln für eingebettete Dokumente; leer lassen, damit Obsidian selbst skaliert. | *(leer)* |
 
 ## Funktionsweise
 
