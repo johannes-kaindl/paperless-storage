@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- User documentation: a documentation index with Getting started and Troubleshooting (English and German), linked from the README.
+- README screenshots: hero, the Insert document search window, the offline notice and the settings tab, recorded against a demo server with invented documents (`npm run shots`).
+
+### Fixed
+
+- README: removed the claim that the plugin re-fetches a document when it changes on the server (a cached document is only refreshed by clearing the cache), and corrected the German README, which said desktop only although the plugin runs on mobile too.
+
 ## [0.2.2] — 2026-09-24
 
 ### Changed
