@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.3] — 2026-09-26
+
 ### Added
 
 - User documentation: a documentation index with Getting started and Troubleshooting (English and German), linked from the README.
