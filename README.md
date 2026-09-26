@@ -4,9 +4,11 @@
 directly in your notes — read in the flow of your writing, not through a link.**
 
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
+[![Docs: CC BY-SA 4.0](https://img.shields.io/badge/docs-CC%20BY--SA%204.0-lightgrey.svg)](LICENSE-DOCS)
+[![Release](https://img.shields.io/github/v/release/johannes-kaindl/paperless-storage?label=release)](https://github.com/johannes-kaindl/paperless-storage/releases)
 ![Platform](https://img.shields.io/badge/platform-Obsidian%201.8.7%2B%20·%20desktop%20%26%20mobile-7c3aed)
 
-*Auch auf Deutsch verfügbar: [`README.de.md`](README.de.md).*
+> 🇬🇧 English · [🇩🇪 Deutsch](https://github.com/johannes-kaindl/paperless-storage/blob/main/README.de.md)
 
 paperless-ngx can generate public share links for a document, but a link like that has
 no login — anyone who has the URL has the document, and it would sit in plain text in
@@ -19,11 +21,11 @@ vault or shared outside it.
 
 - **Inline PDF embeds** — `![[Mietvertrag.paperless]]` renders the document right in
   the note, using Obsidian's own PDF viewer (scrollable, zoomable, no bundled renderer).
-- **Insert document** command opens a search modal over your paperless library and
+- **Insert document** command (command palette, while a note is open) opens a search modal over your paperless library and
   inserts an embed at the cursor.
 - **Open in a full pane** — clicking a `.paperless` file in the file explorer opens the
   document like any other file, not just as an embed.
-- **Title synchronization** — a command renames stub files to match the current
+- **Title synchronization** — the **Synchronize document titles** command renames stub files to match the current
   document title on the server.
 - **Local caching** — downloaded PDFs are cached in the vault, so a document stays
   readable offline once it has been opened; a command clears the cache on demand.
@@ -40,37 +42,20 @@ vault or shared outside it.
 
 ## Install
 
-This plugin is **not distributed through the community store**. It lives on its own forge,
-and there are two ways to get it.
+### Community plugins
 
-**Recommended — via [AnySource Sideloader](https://git.jkaindl.de/jkaindl/anysource-sideloader)**,
-which installs and updates plugins from any git forge. Subscribe to this catalog once:
+Settings → Community plugins → Browse → "Paperless Storage" → Install → Enable.
 
-```
-https://git.jkaindl.de/jkaindl/obsidian-catalog/raw/branch/main/catalog.json
-```
+### Manual
 
-Paperless Storage then appears in the sideloader's plugin list and updates like any other
-plugin — no manual copying, and every download is checksum-verified. To install just this one
-plugin without the catalog, add its repository URL as a source instead:
-`https://git.jkaindl.de/jkaindl/paperless-storage`.
+Download `main.js`, `manifest.json` and `styles.css` from the [latest release](https://github.com/johannes-kaindl/paperless-storage/releases) and copy them into `<vault>/.obsidian/plugins/paperless-storage/`, then enable the plugin.
 
-**By hand**, if you would rather not add another plugin:
+### BRAT (beta)
 
-1. Download `main.js`, `manifest.json` and `styles.css` from the
-   [latest release](https://git.jkaindl.de/jkaindl/paperless-storage/releases).
-2. Copy them into `<vault>/.obsidian/plugins/paperless-storage/`.
-3. Obsidian → Settings → Community plugins → enable **Paperless Storage**.
-
-Updates then have to be repeated by hand — the sideloader route exists to avoid exactly that.
-
-> [!warning] BRAT does not work for this plugin right now
-> BRAT installs from GitHub, and this project's GitHub mirror is not publicly readable at the
-> moment — the account is flagged, so anonymous requests get a 404. Once the mirror is public
-> again, `johannes-kaindl/paperless-storage` will work in
-> [BRAT](https://github.com/TfTHacker/obsidian42-brat); until then, use the sideloader above.
+Add `johannes-kaindl/paperless-storage` in [BRAT](https://github.com/TfTHacker/obsidian42-brat).
 
 ### From source
+
 ```bash
 git clone https://git.jkaindl.de/jkaindl/paperless-storage
 cd paperless-storage && npm install && npm run build
@@ -80,14 +65,15 @@ cd paperless-storage && npm install && npm run build
 ## Usage
 
 1. Open **Settings → Paperless Storage** and enter your server URL and API token.
-2. Run the **"Insert document"** command (or its editor context) to search your
+2. Run **Paperless Storage: Insert document** from the command palette to search your
    paperless library and insert an embed at the cursor.
 3. The embed downloads and caches the document on first view; after that it renders
-   from the local cache and only re-fetches when the server-side document changed.
+   from the local cache, also offline. To fetch a newer version, run **Clear document cache**.
 4. Click a `.paperless` file in the file explorer to open it full-pane, exactly like a
    native file.
-5. Run **"Synchronize document titles"** to rename stub files to match their current
+5. Run **Synchronize document titles** to rename stub files to match their current
    title on the server.
+6. **Clear document cache** removes the downloaded PDFs.
 
 ### A note on renaming
 
@@ -115,17 +101,23 @@ your vault — it gets backlinks, appears in the graph, and works with autocompl
 any other file. An adapter on Obsidian's (undocumented) `embedRegistry` renders it: the
 document bytes are fetched from paperless-ngx using your API token, cached in the vault,
 and handed to Obsidian's own PDF viewer for display — no PDF renderer is bundled with
-this plugin. Architecture and design rationale: [`CLAUDE.md`](CLAUDE.md) and
-[`docs/superpowers/specs/2026-08-05-paperless-storage-design.md`](docs/superpowers/specs/2026-08-05-paperless-storage-design.md).
+this plugin. Architecture: [`AGENTS.md`](AGENTS.md).
 
 ## Contributing
 
-Issues/PRs on [git.jkaindl.de](https://git.jkaindl.de/jkaindl/paperless-storage). This
-project is test-driven (`npm test`, `npm run gate`); see [`CLAUDE.md`](CLAUDE.md) for
+Issues on [GitHub](https://github.com/johannes-kaindl/paperless-storage/issues); the canonical source is [git.jkaindl.de](https://git.jkaindl.de/jkaindl/paperless-storage). This
+project is test-driven (`npm test`, `npm run gate`); see [`AGENTS.md`](AGENTS.md) for
 the wider development workflow.
+
+## Documentation
+
+- [Documentation index](https://github.com/johannes-kaindl/paperless-storage/blob/main/docs/README.md)
+- [Getting started](https://github.com/johannes-kaindl/paperless-storage/blob/main/docs/README.md#getting-started) — from installation to your first embedded document
+- [Troubleshooting](https://github.com/johannes-kaindl/paperless-storage/blob/main/docs/README.md#troubleshooting) — messages, causes, fixes
 
 ## License
 
-AGPL-3.0-or-later — see [`LICENSE`](LICENSE).
+- **Code:** AGPL-3.0-or-later ([`LICENSE`](LICENSE)).
+- **Docs/Text:** CC BY-SA 4.0 ([`LICENSE-DOCS`](LICENSE-DOCS)).
 
 Copyright © 2026 Johannes Kaindl.

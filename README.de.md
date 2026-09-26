@@ -4,10 +4,13 @@
 in Notizen einbetten — im Lesefluss, nicht über einen Link.**
 
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
-![Platform](https://img.shields.io/badge/platform-Obsidian%201.8.7%2B%20·%20nur%20Desktop-7c3aed)
+[![Docs: CC BY-SA 4.0](https://img.shields.io/badge/docs-CC%20BY--SA%204.0-lightgrey.svg)](LICENSE-DOCS)
+[![Release](https://img.shields.io/github/v/release/johannes-kaindl/paperless-storage?label=release)](https://github.com/johannes-kaindl/paperless-storage/releases)
+![Platform](https://img.shields.io/badge/platform-Obsidian%201.8.7%2B%20·%20Desktop%20%26%20Mobil-7c3aed)
 
-> **Hinweis:** Diese Übersetzung folgt der englischen [`README.md`](README.md).
-> Bei Abweichungen gilt die englische Fassung.
+> [🇬🇧 English](https://github.com/johannes-kaindl/paperless-storage/blob/main/README.md) · 🇩🇪 Deutsch
+
+> **Hinweis:** Diese Übersetzung folgt der englischen README. Bei Abweichungen gilt die englische Fassung.
 
 paperless-ngx kann öffentliche Freigabe-Links für ein Dokument erzeugen, aber so ein
 Link kennt keine Anmeldung — wer die URL hat, hat das Dokument, und sie stünde im
@@ -21,11 +24,11 @@ Vault ab — und gibt nichts nach außen.
 - **PDF-Einbettung in der Notiz** — `![[Mietvertrag.paperless]]` rendert das Dokument
   direkt in der Notiz, über Obsidians eigenen PDF-Betrachter (scrollbar, zoombar, kein
   mitgelieferter Renderer).
-- **Befehl „Dokument einfügen"** öffnet eine Suche über deine paperless-Bibliothek und
+- **Befehl „Insert document"** (Befehlspalette, bei geöffneter Notiz) öffnet eine Suche über deine paperless-Bibliothek und
   setzt die Einbettung an der Cursorposition ein.
 - **In eigenem Tab öffnen** — ein Klick auf eine `.paperless`-Datei im Dateibaum öffnet
   das Dokument wie jede andere Datei, nicht nur als Einbettung.
-- **Titel-Abgleich** — ein Befehl benennt Stub-Dateien nach dem aktuellen Dokumenttitel
+- **Titel-Abgleich** — der Befehl „Synchronize document titles“ benennt Stub-Dateien nach dem aktuellen Dokumenttitel
   auf dem Server um.
 - **Lokaler Cache** — heruntergeladene PDFs liegen im Vault, ein einmal geöffnetes
   Dokument bleibt also offline lesbar; ein Befehl leert den Cache bei Bedarf.
@@ -34,45 +37,26 @@ Vault ab — und gibt nichts nach außen.
 
 ## Voraussetzungen
 
-- **Obsidian 1.8.7+**, nur Desktop (`isDesktopOnly: true` — das Plugin spricht per HTTP
-  mit einem paperless-ngx-Server und nutzt Obsidians Desktop-PDF-Betrachter).
+- **Obsidian 1.8.7+**, Desktop und Mobil (`isDesktopOnly: false` — das Plugin nutzt keine Node- oder Electron-API: es holt über Obsidians `requestUrl`, cacht über die Vault-API und zeigt Dokumente im eingebauten PDF-Betrachter).
 - Eine erreichbare **paperless-ngx**-Instanz und ein **API-Token** dafür (in den
   Einstellungen von paperless selbst anzulegen).
 
 ## Installation
 
-Dieses Plugin wird **nicht über den Community-Store verteilt**. Es liegt auf einer eigenen
-Forge, und es gibt zwei Wege, es zu bekommen.
+### Community-Plugins
 
-**Empfohlen — über den [AnySource Sideloader](https://git.jkaindl.de/jkaindl/anysource-sideloader)**,
-der Plugins von beliebigen Git-Forges installiert und aktualisiert. Diesen Katalog einmal
-abonnieren:
+Einstellungen → Community-Plugins → Durchsuchen → „Paperless Storage“ → Installieren → Aktivieren.
 
-```
-https://git.jkaindl.de/jkaindl/obsidian-catalog/raw/branch/main/catalog.json
-```
+### Von Hand
 
-Paperless Storage erscheint danach in der Plugin-Liste des Sideloaders und aktualisiert sich wie
-jedes andere Plugin — kein Kopieren von Hand, und jeder Download wird über eine Prüfsumme
-verifiziert. Wer nur dieses eine Plugin will, trägt statt des Katalogs dessen Repo-URL als Quelle
-ein: `https://git.jkaindl.de/jkaindl/paperless-storage`.
+`main.js`, `manifest.json` und `styles.css` aus dem [neuesten Release](https://github.com/johannes-kaindl/paperless-storage/releases) herunterladen, nach `<vault>/.obsidian/plugins/paperless-storage/` kopieren und das Plugin aktivieren.
 
-**Von Hand**, wenn kein weiteres Plugin dazukommen soll:
+### BRAT (Beta)
 
-1. `main.js`, `manifest.json` und `styles.css` aus dem
-   [neuesten Release](https://git.jkaindl.de/jkaindl/paperless-storage/releases) herunterladen.
-2. Nach `<vault>/.obsidian/plugins/paperless-storage/` kopieren.
-3. Obsidian → Einstellungen → Community-Plugins → **Paperless Storage** aktivieren.
-
-Aktualisierungen sind dann jedes Mal Handarbeit — der Sideloader-Weg existiert genau dafür.
-
-> [!warning] BRAT funktioniert für dieses Plugin derzeit nicht
-> BRAT installiert aus GitHub, und der GitHub-Spiegel dieses Projekts ist zurzeit nicht
-> öffentlich lesbar — das Konto ist geflaggt, anonyme Anfragen bekommen ein 404. Sobald der
-> Spiegel wieder öffentlich ist, funktioniert `johannes-kaindl/paperless-storage` in
-> [BRAT](https://github.com/TfTHacker/obsidian42-brat); bis dahin der Sideloader oben.
+`johannes-kaindl/paperless-storage` in [BRAT](https://github.com/TfTHacker/obsidian42-brat) eintragen.
 
 ### Aus dem Quelltext
+
 ```bash
 git clone https://git.jkaindl.de/jkaindl/paperless-storage
 cd paperless-storage && npm install && npm run build
@@ -83,15 +67,11 @@ cd paperless-storage && npm install && npm run build
 
 1. **Einstellungen → Paperless Storage** öffnen und Server-URL sowie API-Token
    eintragen.
-2. Den Befehl **„Dokument einfügen"** ausführen, in der paperless-Bibliothek suchen und
-   die Einbettung an der Cursorposition einsetzen.
-3. Die Einbettung lädt das Dokument beim ersten Anzeigen herunter und legt es im Cache
-   ab; danach rendert sie aus dem Cache und holt nur nach, wenn sich das Dokument auf
-   dem Server geändert hat.
-4. Ein Klick auf eine `.paperless`-Datei im Dateibaum öffnet sie in einem eigenen Tab,
-   genau wie eine native Datei.
-5. **„Dokumenttitel abgleichen"** benennt Stub-Dateien nach ihrem aktuellen Titel auf
-   dem Server um.
+2. **Paperless Storage: Insert document** aus der Befehlspalette ausführen, in der paperless-Bibliothek suchen und die Einbettung an der Cursorposition einsetzen. (Die Befehlsnamen sind englisch.)
+3. Die Einbettung lädt das Dokument beim ersten Anzeigen herunter und legt es im Cache ab; danach rendert sie aus dem Cache, auch offline. Für eine neuere Fassung **Clear document cache** ausführen.
+4. Ein Klick auf eine `.paperless`-Datei im Dateibaum öffnet sie in einem eigenen Tab, genau wie eine native Datei.
+5. **Synchronize document titles** benennt Stub-Dateien nach ihrem aktuellen Titel auf dem Server um.
+6. **Clear document cache** entfernt die heruntergeladenen PDFs.
 
 ### Zum Umbenennen
 
@@ -120,17 +100,23 @@ funktioniert mit der Autovervollständigung wie jede andere Datei. Gerendert wir
 über einen Adapter an Obsidians (undokumentierter) `embedRegistry`: die Dokumentbytes
 werden mit deinem API-Token von paperless-ngx geholt, im Vault gecacht und Obsidians
 eigenem PDF-Betrachter übergeben — dieses Plugin bringt keinen eigenen PDF-Renderer
-mit. Architektur und Entwurfsbegründung: [`CLAUDE.md`](CLAUDE.md) und
-[`docs/superpowers/specs/2026-08-05-paperless-storage-design.md`](docs/superpowers/specs/2026-08-05-paperless-storage-design.md).
+mit. Architektur: [`AGENTS.md`](AGENTS.md).
+
+## Dokumentation
+
+- [Doku-Index (Deutsch)](https://github.com/johannes-kaindl/paperless-storage/blob/main/docs/README.de.md)
+- [Erste Schritte](https://github.com/johannes-kaindl/paperless-storage/blob/main/docs/README.de.md#erste-schritte) — von der Installation bis zum ersten eingebetteten Dokument
+- [Fehlerbehebung](https://github.com/johannes-kaindl/paperless-storage/blob/main/docs/README.de.md#fehlerbehebung) — Meldungen, Ursachen, Abhilfe
 
 ## Mitwirken
 
-Issues und PRs auf [git.jkaindl.de](https://git.jkaindl.de/jkaindl/paperless-storage).
+Issues auf [GitHub](https://github.com/johannes-kaindl/paperless-storage/issues); die kanonische Quelle ist [git.jkaindl.de](https://git.jkaindl.de/jkaindl/paperless-storage).
 Das Projekt ist testgetrieben (`npm test`, `npm run gate`); der weitere
-Entwicklungs-Workflow steht in [`CLAUDE.md`](CLAUDE.md).
+Entwicklungs-Workflow steht in [`AGENTS.md`](AGENTS.md).
 
 ## Lizenz
 
-AGPL-3.0-or-later — siehe [`LICENSE`](LICENSE).
+- **Code:** AGPL-3.0-or-later ([`LICENSE`](LICENSE)).
+- **Doku/Text:** CC BY-SA 4.0 ([`LICENSE-DOCS`](LICENSE-DOCS)).
 
 Copyright © 2026 Johannes Kaindl.
