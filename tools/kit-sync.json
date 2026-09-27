@@ -1,0 +1,20 @@
+{
+  "sources": { "obsidian-kit": { "ref": "0.37.1" }, "code-kit": { "ref": "0.5.0" } },
+  "targets": [
+    { "dir": "src/vendor/kit", "source": "code-kit", "from": "src/ts/pure", "modules": ["i18n", "error_body", "settings"] },
+    {
+      "dir": "src/vendor/kit-obsidian", "source": "obsidian-kit", "from": "src/obsidian",
+      "modules": ["folder-suggest", "settings_walker"], "vendorJson": "src/vendor/kit"
+    },
+    {
+      "dir": "src/vendor/kit-obsidian", "source": "obsidian-kit", "from": "src/obsidian",
+      "modules": [{ "name": "help-setting", "ref": "0.43.0" }, { "name": "folder-hide", "ref": "0.43.0" }],
+      "vendorJson": "src/vendor/kit"
+    },
+    {
+      "dir": "src/vendor/pure", "source": "obsidian-kit", "from": "src/pure",
+      "modules": [{ "name": "folder-hide", "ref": "0.43.0" }], "vendorJson": "src/vendor/kit"
+    },
+    { "dir": "tests/vendor/kit", "source": "obsidian-kit", "from": "src/testing", "modules": ["obsidian-mock"], "vendorJson": "src/vendor/kit" }
+  ]
+}
