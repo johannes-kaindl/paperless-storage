@@ -8,7 +8,7 @@ Organised after [Diátaxis](https://diataxis.fr/): learning, doing, looking up a
 
 Deutsch: [Dokumentation auf Deutsch](README.de.md).
 
-`SMOKE.md` and `superpowers/` in this folder are maintainer material (GUI smoke checklist, design specs), not user documentation.
+`SMOKE.md` in this folder is maintainer material (GUI smoke checklist), not user documentation.
 
 ## Getting started
 

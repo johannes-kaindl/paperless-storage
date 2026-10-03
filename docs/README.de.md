@@ -8,7 +8,7 @@ Gegliedert nach [Diátaxis](https://diataxis.fr/): Lernen, Tun, Nachschlagen und
 
 English: [documentation in English](README.md). Bei Abweichungen gilt die englische Fassung.
 
-`SMOKE.md` und `superpowers/` in diesem Ordner sind Material für Maintainer (GUI-Smoke-Checkliste, Entwurfs-Specs), keine Nutzer-Doku.
+`SMOKE.md` in diesem Ordner ist Material für Maintainer (GUI-Smoke-Checkliste), keine Nutzer-Doku.
 
 ## Erste Schritte
 

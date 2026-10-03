@@ -11,8 +11,7 @@ API-Token statt über öffentliche Share-Links.
 
 | Was | Wo |
 |---|---|
-| Design und Begründungen | `docs/superpowers/specs/2026-08-05-paperless-storage-design.md` |
-| Umsetzungsplan Phase 1 | `docs/superpowers/plans/2026-08-05-paperless-storage-phase-1.md` |
+| Design, Pläne und Spikes | Specs und Pläne liegen im Vault-Cockpit unter `_SDD/` (CORE-META-14): `2026-08-05-paperless-storage-design.md`, `2026-08-05-paperless-storage-phase-1.md` |
 | Dach-Konventionen (**verbindlich**) | `../AGENTS.md`, `../UI-STANDARD.md`, `../REGISTRY.md` |
 | Globale Standards | `../../_docs/CONVENTIONS.md` (PROF-OBS-Regeln) — maintainer-lokal, nicht Teil dieses Repos |
 

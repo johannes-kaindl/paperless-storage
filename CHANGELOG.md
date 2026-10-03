@@ -58,7 +58,7 @@ All notable changes to this project are documented here. The format follows
   unmeasured until now. Verified on a real device: the document renders inline, and the
   token-authenticated fetch works there too. The three lines of evidence that preceded
   the device test are in
-  `docs/superpowers/specs/2026-09-02-mobile-spike-ergebnis.md`, along with what each of
+  `2026-09-02-mobile-spike-ergebnis.md` (maintainer's vault cockpit), along with what each of
   them could *not* show.
 
 ## [0.1.2] — 2026-08-06
