@@ -1,4 +1,4 @@
-// vendored from obsidian-kit@0.43.0, src/obsidian/folder-hide.ts — do not hand-edit; re-vendor via tools/sync-kit.sh
+// vendored from obsidian-kit@0.57.0, src/obsidian/folder-hide.ts — do not hand-edit; re-vendor via tools/sync-kit.sh
 /** Hängt das Ausblende-Stylesheet aus `pure/folder-hide` an ein Dokument — per Constructable
  *  Stylesheet, weil ein `<style>`-Element die Store-Lint-Regel `no-forbidden-elements` verletzt.
  *
@@ -26,13 +26,13 @@ import { buildHideCss } from "../pure/folder-hide";
 export interface FolderHideHandle {
   /** `false` ohne Constructable Stylesheets — dann bleibt der Ordner sichtbar. */
   readonly supported: boolean;
-  update(folder: string, hide: boolean): void;
+  update(folder: string | readonly string[], hide: boolean): void;
   remove(): void;
 }
 
 export function installFolderHide(
   doc: Document,
-  folder: string,
+  folder: string | readonly string[],
   hide: boolean,
   onError: (e: unknown) => void = () => {},
 ): FolderHideHandle {
@@ -40,7 +40,7 @@ export function installFolderHide(
   const supported = !!Sheet && "replaceSync" in Sheet.prototype && "adoptedStyleSheets" in doc;
   let sheet: CSSStyleSheet | null = null;
 
-  const update = (f: string, h: boolean): void => {
+  const update = (f: string | readonly string[], h: boolean): void => {
     if (!supported || !Sheet) return;
     try {
       if (sheet === null) {

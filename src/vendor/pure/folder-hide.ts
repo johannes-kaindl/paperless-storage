@@ -1,4 +1,4 @@
-// vendored from obsidian-kit@0.43.0, src/pure/folder-hide.ts — do not hand-edit; re-vendor via tools/sync-kit.sh
+// vendored from obsidian-kit@0.57.0, src/pure/folder-hide.ts — do not hand-edit; re-vendor via tools/sync-kit.sh
 /** CSS, das einen Ordner im Datei-Explorer von Obsidian ausblendet — der pure Kern.
  *
  *  Herkunft (Welle 8, 2026-09-25): `vault-rag/src/index_dir.ts` (`normalizeIndexDir`,
@@ -20,10 +20,19 @@ export function normalizeFolder(raw: string): string {
   return raw.trim().replace(/\/+$/, "");
 }
 
-/** Die Regel für `folder`, oder `""`, wenn nicht ausgeblendet wird bzw. der Ordner leer ist. */
-export function buildHideCss(folder: string, hide: boolean): string {
-  const p = normalizeFolder(folder);
-  if (!hide || p === "") return "";
-  const sel = `.nav-folder-title[data-path=${JSON.stringify(p)}]`;
-  return `${sel},\n${sel} + .nav-folder-children { display: none; }`;
+/** Die Regel für `folder`, oder `""`, wenn nicht ausgeblendet wird bzw. nichts übrig bleibt.
+ *
+ *  Eine Liste wird je Pfad normalisiert (`normalizeFolder`), Leere und Duplikate fallen weg, die
+ *  Reihenfolge bleibt; je Pfad entsteht ein Zwei-Selektor-Block, die Blöcke trennt `\n`. Kein
+ *  Vorfahren-Pruning: `a` und `a/b` ergeben zwei Blöcke (harmlos, `a` verdeckt `a/b` ohnehin). */
+export function buildHideCss(folder: string | readonly string[], hide: boolean): string {
+  if (!hide) return "";
+  const raw = typeof folder === "string" ? [folder] : folder;
+  const paths = [...new Set(raw.map(normalizeFolder).filter((p) => p !== ""))];
+  return paths
+    .map((p) => {
+      const sel = `.nav-folder-title[data-path=${JSON.stringify(p)}]`;
+      return `${sel},\n${sel} + .nav-folder-children { display: none; }`;
+    })
+    .join("\n");
 }
