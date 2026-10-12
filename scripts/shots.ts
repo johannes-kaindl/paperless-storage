@@ -223,7 +223,11 @@ async function main(): Promise<void> {
     return;
   }
 
-  const port = Number(flag("--port") ?? process.env.SHOTS_PORT ?? 9222);
+  const portRaw = flag("--port") ?? process.env.SHOTS_PORT;
+  if (!portRaw || !Number.isInteger(Number(portRaw))) {
+    throw new Error("--port <Port> ist Pflicht (Zweitinstanz mit eigenem Port, Kopfkommentar); es gibt keinen Standardport.");
+  }
+  const port = Number(portRaw);
   if (port === 9222) throw new Error("Port 9222 ist die reguelaere Instanz — Aufnahmen laufen in einer Zweitinstanz.");
   const nur = flag("--only");
   if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
