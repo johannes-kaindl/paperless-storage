@@ -7,6 +7,7 @@
 // Bildmaterial.
 
 import { createServer, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
 
 export const DEMO_TOKEN = "demo-token";
 
@@ -104,8 +105,10 @@ export async function startDemoServer(port: number): Promise<DemoServer> {
     json({ id: doc.id, title: doc.title, created: "2026-01-01", versions: [{ id: doc.id, is_root: true, checksum: `demo-${doc.id}` }] });
   });
   await new Promise<void>((resolve) => server.listen(port, "127.0.0.1", resolve));
+  // `port` 0 heisst: das Betriebssystem waehlt — die Adresse nennt den tatsaechlichen Port.
+  const actual = (server.address() as AddressInfo).port;
   return {
-    url: `http://127.0.0.1:${port}`,
+    url: `http://127.0.0.1:${actual}`,
     close: () => new Promise((resolve) => server.close(() => resolve())),
   };
 }

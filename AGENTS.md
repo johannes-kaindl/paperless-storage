@@ -4,7 +4,7 @@ Obsidian-Plugin, das Dokumente aus einer **paperless-ngx**-Instanz nativ in Noti
 einbettet: `![[Mietvertrag.paperless]]` zeigt das PDF im Lesefluss, geladen per
 API-Token statt über öffentliche Share-Links.
 
-**Stand 0.3.2 (2026-10-03), im Community Store.** Das Plugin bettet paperless-Dokumente per `![[…paperless]]` (embedRegistry-Adapter) und als eigene FileView ein, hat einen lokalen Cache mit konfigurierbarem, ausblendbarem Cache-Ordner, die Befehle "Insert document", "Clear document cache" und "Synchronize document titles" sowie einen deklarativen Settings-Tab mit Hilfe-Zeile. Der GUI-Smoke (`npm run smoke:gui -- --port <port>`, `docs/SMOKE.md`) fährt in einer Zweitinstanz und zählt in vier Zuständen; seine Embed-Punkte brauchen eine echte paperless-Instanz.
+**Stand 0.3.2 (2026-10-03), im Community Store.** Das Plugin bettet paperless-Dokumente per `![[…paperless]]` (embedRegistry-Adapter) und als eigene FileView ein, hat einen lokalen Cache mit konfigurierbarem, ausblendbarem Cache-Ordner, die Befehle "Insert document", "Clear document cache" und "Synchronize document titles" sowie einen deklarativen Settings-Tab mit Hilfe-Zeile. Der GUI-Smoke (`npm run smoke:gui -- --port <port>`, `docs/SMOKE.md`) fährt in einer Zweitinstanz und zählt in vier Zuständen; ohne `PAPERLESS_URL`/`PAPERLESS_TOKEN` fährt er gegen den Demo-Server (`scripts/demo-paperless.ts`), mit ihnen gegen die echte Instanz; die Abschlusszeile nennt die Gegenstelle.
 
 ## Vor dem Anfangen lesen
 

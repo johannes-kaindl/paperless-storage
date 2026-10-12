@@ -25,9 +25,12 @@
  * eigenen Port halten (`python3 ~/.claude/hooks/obsidian-cdp-lock.py acquire --label paperless-storage --intent … --exclusive focus --port <port>`).
  * Vertrauensdialog und Restricted Mode erledigt `bereiteInstanzVor`.
  *
- * Die Embed-Punkte (3–5) brauchen eine **echte paperless-Instanz**. Sind `PAPERLESS_URL` und
- * `PAPERLESS_TOKEN` beim `--setup` nicht gesetzt oder fehlen Server/Token in den Einstellungen,
- * sind diese Punkte „nichts gemessen“ (Exit 1); die übrigen laufen ohne Server.
+ * Die Embed-Punkte (3–5) brauchen eine Gegenstelle. Sind Server und Token in den Einstellungen
+ * gesetzt (`--setup` mit `PAPERLESS_URL`/`PAPERLESS_TOKEN`), ist es die **echte** paperless-Instanz;
+ * sonst — oder mit `--demo` — der lokale Demo-Server aus `scripts/demo-paperless.ts` (Port vom
+ * Betriebssystem, Dokument 101). Server und Token der Einstellungen werden für den Lauf ersetzt und
+ * danach zurückgesetzt; die Abschlusszeile nennt die Gegenstelle („Demo“/„echt“). Der Demo-Server
+ * prüft die Naht zum Host (embedRegistry, PDF-Viewer), nicht paperless selbst.
  *
  * ```bash
  * export PAPERLESS_URL=https://…           # Test-Server, optional
@@ -44,6 +47,7 @@
 
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { DEMO_TOKEN, startDemoServer, type DemoServer } from "./demo-paperless.js";
 // Die CDP-Brücke liegt seit 2026-08-16 zentral im Dach (tools/obsidian-cdp/) und wird
 // importiert, nicht vendored: sie ist plugin-neutral und lief zuvor byte-identisch in
 // sechs Repos. Fehlt das Dach (fremder Checkout), bricht esbuild beim Auflösen ab — das
@@ -129,7 +133,9 @@ async function main(): Promise<void> {
   }
   const port = Number(portRaw);
   const keep = args.has("keep");
-  const docId = Number(args.value("doc") ?? 1);
+  const docArg = args.value("doc");
+  const forceDemo = args.has("demo");
+  let docId = Number(docArg ?? 1);
   const vault = args.value("vault") ?? PLUGIN_ID;
 
   console.log(`GUI-Smoke — Obsidian auf Port ${port}`);
@@ -148,6 +154,9 @@ async function main(): Promise<void> {
   let previousEmbedHeight: number | null | "unset" = "unset";
   let previousCacheFolder: string | null = null;
   let cacheFolderAngelegt = false;
+  let demo: DemoServer | null = null;
+  let previousServer: { serverUrl: string; apiToken: string } | null = null;
+  let gegenstelleName: "Demo" | "echt" | "keine" = "keine";
   let cacheFolderName = "";
   // Die `ungeklaert`-Warnung gehoert in die Abschlusszeile, nicht nur nach oben ins
   // Protokoll: wer eine Runde faehrt, liest die letzte Zeile — und ein Lauf, dessen
@@ -170,6 +179,7 @@ async function main(): Promise<void> {
           ${previousCacheFolder !== null ? `p.settings.cacheFolder = ${JSON.stringify(previousCacheFolder)};` : ""}
           ${previousHideCacheFolder !== null ? `p.settings.hideCacheFolder = ${JSON.stringify(previousHideCacheFolder)};` : ""}
           ${previousEmbedHeight !== "unset" ? `p.settings.embedHeight = ${JSON.stringify(previousEmbedHeight)};` : ""}
+          ${previousServer !== null ? `p.settings.serverUrl = ${JSON.stringify(previousServer.serverUrl)}; p.settings.apiToken = ${JSON.stringify(previousServer.apiToken)};` : ""}
           await p.saveSettings();
           if (p.applyCacheFolderVisibility) p.applyCacheFolderVisibility();
         }
@@ -247,9 +257,30 @@ async function main(): Promise<void> {
       return { ok: true, version: p.manifest.version, aufPlatte, configured: !!(p.settings.serverUrl && p.settings.apiToken) };
     `);
     if (!plugin.ok) throw new Error(`Plugin ${PLUGIN_ID} ist nicht geladen (${vorbereitet.hinweis}). Erst \`npm run deploy\`.`);
-    // Ohne Server/Token gibt es keine Gegenstelle für die Embed-Punkte (3–5): sie sind „nichts
-    // gemessen“, nicht grün und nicht übersprungen. Die übrigen Punkte brauchen keinen Server.
-    const gegenstelle = plugin.configured === true;
+    // Gegenstelle der Embed-Punkte (3–5): sind Server und Token gesetzt, ist es die echte
+    // paperless-Instanz ("echt"); sonst (oder mit `--demo`) der lokale Demo-Server aus
+    // `scripts/demo-paperless.ts` auf einem vom Betriebssystem gewählten Port ("Demo"). Der
+    // Demo-Server prüft die Naht zum Host (embedRegistry, PDF-Viewer), nicht paperless selbst.
+    // Server und Token der Einstellungen werden für den Lauf ersetzt und im `finally` zurückgesetzt.
+    if (plugin.configured === true && !forceDemo) {
+      gegenstelleName = "echt";
+    } else {
+      demo = await startDemoServer(0);
+      previousServer = await cdp.evaluate<{ serverUrl: string; apiToken: string }>(`
+        const s = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}].settings;
+        return { serverUrl: s.serverUrl ?? "", apiToken: s.apiToken ?? "" };
+      `);
+      await cdp.evaluate(`
+        const p = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}];
+        p.settings.serverUrl = ${JSON.stringify(demo.url)};
+        p.settings.apiToken = ${JSON.stringify(DEMO_TOKEN)};
+        await p.saveSettings();
+        return true;
+      `);
+      if (docArg === undefined) docId = 101;
+      gegenstelleName = "Demo";
+    }
+    console.log(`Gegenstelle: ${gegenstelleName}${demo ? ` (${demo.url}, Dokument ${docId})` : ` (Dokument ${docId})`}`);
     // Nicht \"Version im Vault\" nennen: `enablePlugin` laedt den CODE neu, das MANIFEST
     // nicht — das liest Obsidian beim Vault-Start. Die geladene Nummer ist also eine Aussage
     // ueber den App-Start, die Platte eine ueber die gemessene Datei. Weichen sie ab, liegt
@@ -393,114 +424,108 @@ async function main(): Promise<void> {
       return true;
     `);
 
-    if (gegenstelle) {
-      // --- Szene fuer Embed-/Hoehe-Checks herstellen ---------------------------
-      await cdp.evaluate(`
-        const p = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}];
-        p.settings.embedHeight = 500;
-        await p.saveSettings();
+    // --- Szene fuer Embed-/Hoehe-Checks herstellen ---------------------------
+    await cdp.evaluate(`
+      const p = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}];
+      p.settings.embedHeight = 500;
+      await p.saveSettings();
 
-        const stubBody = JSON.stringify({ id: ${docId}, title: "GUI-Smoke" }, null, 2) + "\\n";
-        const stubPath = ${JSON.stringify(SMOKE_STUB)};
-        const existingStub = app.vault.getAbstractFileByPath(stubPath);
-        if (existingStub) await app.vault.modify(existingStub, stubBody);
-        else await app.vault.create(stubPath, stubBody);
+      const stubBody = JSON.stringify({ id: ${docId}, title: "GUI-Smoke" }, null, 2) + "\\n";
+      const stubPath = ${JSON.stringify(SMOKE_STUB)};
+      const existingStub = app.vault.getAbstractFileByPath(stubPath);
+      if (existingStub) await app.vault.modify(existingStub, stubBody);
+      else await app.vault.create(stubPath, stubBody);
 
-        const noteBody = "# GUI-Smoke (automatisch erzeugt, wird nach dem Lauf gelöscht)\\n\\n![[" + stubPath + "]]\\n";
-        const notePath = ${JSON.stringify(SMOKE_NOTE)};
-        const existingNote = app.vault.getAbstractFileByPath(notePath);
-        if (existingNote) await app.vault.modify(existingNote, noteBody);
-        else await app.vault.create(notePath, noteBody);
+      const noteBody = "# GUI-Smoke (automatisch erzeugt, wird nach dem Lauf gelöscht)\\n\\n![[" + stubPath + "]]\\n";
+      const notePath = ${JSON.stringify(SMOKE_NOTE)};
+      const existingNote = app.vault.getAbstractFileByPath(notePath);
+      if (existingNote) await app.vault.modify(existingNote, noteBody);
+      else await app.vault.create(notePath, noteBody);
 
-        // Erst weg-navigieren, dann hin: ein bereits offenes Ziel-File (Leftover von
-        // frueheren --keep-Laeufen oder manueller Interaktion) rendert seine Embeds sonst
-        // NICHT neu, und die gerade gesetzte embedHeight griffe erst beim naechsten
-        // echten Reload — Check 4 misst dann eine veraltete Hoehe (gemessen 2026-08-06).
-        const neutral = app.vault.getMarkdownFiles().find((f) => f.path !== notePath);
-        if (neutral) await app.workspace.getLeaf(false).openFile(neutral);
+      // Erst weg-navigieren, dann hin: ein bereits offenes Ziel-File (Leftover von
+      // frueheren --keep-Laeufen oder manueller Interaktion) rendert seine Embeds sonst
+      // NICHT neu, und die gerade gesetzte embedHeight griffe erst beim naechsten
+      // echten Reload — Check 4 misst dann eine veraltete Hoehe (gemessen 2026-08-06).
+      const neutral = app.vault.getMarkdownFiles().find((f) => f.path !== notePath);
+      if (neutral) await app.workspace.getLeaf(false).openFile(neutral);
 
-        const note = app.vault.getAbstractFileByPath(notePath);
-        await app.workspace.getLeaf(false).openFile(note, { state: { mode: "preview" } });
-        return true;
-      `);
+      const note = app.vault.getAbstractFileByPath(notePath);
+      await app.workspace.getLeaf(false).openFile(note, { state: { mode: "preview" } });
+      return true;
+    `);
 
-      // --- 3. Embed rendert das PDF --------------------------------------------
-      // Signal ist `.pdf-toolbar` (erscheint erst, wenn Obsidians PDF-Viewer wirklich
-      // initialisiert hat), NICHT scrollHeight>clientHeight: der `.internal-embed`-Span
-      // wird von applyEmbedHeight/dem Viewer selbst auf die Inhaltsgroesse GESETZT, bleibt
-      // also scrollHeight===clientHeight, auch im geladenen Zustand (gemessen 2026-08-06).
-      const embedLoaded = await pollUntil<boolean>(
-        cdp,
-        `
-          const span = document.querySelector(".internal-embed");
-          return !!span?.querySelector(".pdf-toolbar");
-        `,
-        15000,
-      );
-      const embedDiag = await cdp.evaluate<string>(`
+    // --- 3. Embed rendert das PDF --------------------------------------------
+    // Signal ist `.pdf-toolbar` (erscheint erst, wenn Obsidians PDF-Viewer wirklich
+    // initialisiert hat), NICHT scrollHeight>clientHeight: der `.internal-embed`-Span
+    // wird von applyEmbedHeight/dem Viewer selbst auf die Inhaltsgroesse GESETZT, bleibt
+    // also scrollHeight===clientHeight, auch im geladenen Zustand (gemessen 2026-08-06).
+    const embedLoaded = await pollUntil<boolean>(
+      cdp,
+      `
         const span = document.querySelector(".internal-embed");
-        if (!span) return "kein .internal-embed im DOM";
-        const msg = span.querySelector(".paperless-storage-message");
-        return msg ? "Meldung stand noch: " + msg.textContent : "kein .pdf-toolbar gefunden";
-      `);
-      record(
-        "3. Embed lädt das PDF (Obsidians PDF-Viewer via embedRegistry)",
-        embedLoaded === true,
-        embedLoaded ? "" : embedDiag,
-      );
+        return !!span?.querySelector(".pdf-toolbar");
+      `,
+      15000,
+    );
+    const embedDiag = await cdp.evaluate<string>(`
+      const span = document.querySelector(".internal-embed");
+      if (!span) return "kein .internal-embed im DOM";
+      const msg = span.querySelector(".paperless-storage-message");
+      return msg ? "Meldung stand noch: " + msg.textContent : "kein .pdf-toolbar gefunden";
+    `);
+    record(
+      "3. Embed lädt das PDF (Obsidians PDF-Viewer via embedRegistry)",
+      embedLoaded === true,
+      embedLoaded ? "" : embedDiag,
+    );
 
-      // --- 4. Embed-Hoehe uebersteht Obsidians Zwei-Schub-Ueberschreiben --------
-      // render-core.ts applyEmbedHeight(): Obsidians PDF-Viewer setzt die eigene Hoehe in
-      // ZWEI Schueben (erste Layout-Passe ~300-600ms, zweite nach vollstaendiger
-      // Seitenberechnung ~1s spaeter). Ein einmalig abgemeldeter Observer faengt nur die
-      // erste ab (Regressions-Gegenstand von Commit 3334377/22d0af6).
-      await new Promise((resolve) => setTimeout(resolve, 1800));
-      const heightAfter = await cdp.evaluate<string>(`
-        const span = document.querySelector(".internal-embed");
-        return span ? span.style.height : "(kein Embed)";
-      `);
-      record(
-        "4. Embed-Höhe bleibt bei 500px, auch nach dem zweiten Viewer-Überschreiben",
-        heightAfter === "500px",
-        `style.height: ${heightAfter}`,
-      );
+    // --- 4. Embed-Hoehe uebersteht Obsidians Zwei-Schub-Ueberschreiben --------
+    // render-core.ts applyEmbedHeight(): Obsidians PDF-Viewer setzt die eigene Hoehe in
+    // ZWEI Schueben (erste Layout-Passe ~300-600ms, zweite nach vollstaendiger
+    // Seitenberechnung ~1s spaeter). Ein einmalig abgemeldeter Observer faengt nur die
+    // erste ab (Regressions-Gegenstand von Commit 3334377/22d0af6).
+    await new Promise((resolve) => setTimeout(resolve, 1800));
+    const heightAfter = await cdp.evaluate<string>(`
+      const span = document.querySelector(".internal-embed");
+      return span ? span.style.height : "(kein Embed)";
+    `);
+    record(
+      "4. Embed-Höhe bleibt bei 500px, auch nach dem zweiten Viewer-Überschreiben",
+      heightAfter === "500px",
+      `style.height: ${heightAfter}`,
+    );
 
-      // --- 5. FileView zeigt dasselbe Dokument im ganzen Pane -------------------
-      // Selbes Signal wie Check 3 (`.pdf-toolbar`), aus demselben Grund kein
-      // scrollHeight-Vergleich. Kein `.mod-active`-Scope auf dem Leaf-Selektor — der Smoke
-      // haelt exklusiv die Szene, `.view-content` ist eindeutig.
-      await cdp.evaluate(`
-        const stubPath = ${JSON.stringify(SMOKE_STUB)};
-        const neutral = app.vault.getMarkdownFiles()[0];
-        if (neutral) await app.workspace.getLeaf(false).openFile(neutral);
-        const stub = app.vault.getAbstractFileByPath(stubPath);
-        await app.workspace.getLeaf(false).openFile(stub);
-        return true;
-      `);
-      const fileViewLoaded = await pollUntil<boolean>(
-        cdp,
-        `
-          const content = document.querySelector(".view-content");
-          return !!content?.querySelector(".pdf-toolbar");
-        `,
-        15000,
-      );
-      const fileViewDiag = await cdp.evaluate<string>(`
+    // --- 5. FileView zeigt dasselbe Dokument im ganzen Pane -------------------
+    // Selbes Signal wie Check 3 (`.pdf-toolbar`), aus demselben Grund kein
+    // scrollHeight-Vergleich. Kein `.mod-active`-Scope auf dem Leaf-Selektor — der Smoke
+    // haelt exklusiv die Szene, `.view-content` ist eindeutig.
+    await cdp.evaluate(`
+      const stubPath = ${JSON.stringify(SMOKE_STUB)};
+      const neutral = app.vault.getMarkdownFiles()[0];
+      if (neutral) await app.workspace.getLeaf(false).openFile(neutral);
+      const stub = app.vault.getAbstractFileByPath(stubPath);
+      await app.workspace.getLeaf(false).openFile(stub);
+      return true;
+    `);
+    const fileViewLoaded = await pollUntil<boolean>(
+      cdp,
+      `
         const content = document.querySelector(".view-content");
-        if (!content) return "kein .view-content im DOM";
-        const msg = content.querySelector(".paperless-storage-message");
-        return msg ? "Meldung stand noch: " + msg.textContent : "kein .pdf-toolbar gefunden";
-      `);
-      record(
-        "5. FileView öffnet die .paperless-Datei im ganzen Pane",
-        fileViewLoaded === true,
-        fileViewLoaded ? "" : fileViewDiag,
-      );
-    } else {
-      for (const name of [PUNKTE[4], PUNKTE[5], PUNKTE[6]]) {
-        bilanz.unmeasured(name, "Keine Gegenstelle: Server oder Token fehlen in den Plugin-Einstellungen (PAPERLESS_URL/PAPERLESS_TOKEN beim --setup).");
-      }
-    }
+        return !!content?.querySelector(".pdf-toolbar");
+      `,
+      15000,
+    );
+    const fileViewDiag = await cdp.evaluate<string>(`
+      const content = document.querySelector(".view-content");
+      if (!content) return "kein .view-content im DOM";
+      const msg = content.querySelector(".paperless-storage-message");
+      return msg ? "Meldung stand noch: " + msg.textContent : "kein .pdf-toolbar gefunden";
+    `);
+    record(
+      "5. FileView öffnet die .paperless-Datei im ganzen Pane",
+      fileViewLoaded === true,
+      fileViewLoaded ? "" : fileViewDiag,
+    );
 
     // --- 6./7. Settings-Tab zeichnet seine Zeilen wirklich -------------------
     // Regressions-Gegenstand von d182c67 (0.1.2): der Tab definiert seine Zeilen
@@ -732,6 +757,18 @@ async function main(): Promise<void> {
         `)
         .catch(() => undefined);
     }
+    if (previousServer !== null) {
+      await cdp
+        .evaluate(`
+          const p = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}];
+          p.settings.serverUrl = ${JSON.stringify(previousServer.serverUrl)};
+          p.settings.apiToken = ${JSON.stringify(previousServer.apiToken)};
+          await p.saveSettings();
+          return true;
+        `)
+        .catch(() => undefined);
+    }
+    await demo?.close().catch(() => undefined);
     if (!keep) {
       await cdp
         .evaluate(`
@@ -750,7 +787,7 @@ async function main(): Promise<void> {
         await cdp
           .evaluate(`
             const folder = app.vault.getAbstractFileByPath(${JSON.stringify(cacheFolderName)});
-            if (folder && folder.children && folder.children.length === 0) await app.vault.delete(folder, true);
+            if (folder) await app.vault.delete(folder, true);
             return true;
           `)
           .catch(() => undefined);
@@ -765,6 +802,7 @@ async function main(): Promise<void> {
     bilanz.abschluss();
   }
 
+  console.log(`Gegenstelle der Embed-Punkte: ${gegenstelleName}`);
   if (herkunftsWarnung) console.log("⚠️  Herkunft des gemessenen Builds ungeprüft — s. Warnung oben.");
 }
 

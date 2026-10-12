@@ -30,14 +30,14 @@ liegenden Vaults.
 Der Smoke läuft in einer **Zweitinstanz** mit eigenem Profil und eigenem Port, nie in der regulären Instanz: die aktuelle `.asar` der regulären Instanz ins `--user-data-dir` kopieren, den Vault `paperless-storage` aus `$STAGING_VAULTS_DIR` und `"language":"en"` in dessen `obsidian.json` eintragen, mit `--remote-debugging-port=<port>` starten und den CDP-Lock für den eigenen Port halten. Vertrauensdialog und Restricted Mode erledigt der Treiber (`bereiteInstanzVor`).
 
 ```bash
-export PAPERLESS_URL=https://…      # Test-Server; ohne beide Variablen sind die Embed-Punkte 3–5 "nichts gemessen"
+export PAPERLESS_URL=https://…      # Test-Server, optional; ohne beide Variablen fährt der Smoke gegen den Demo-Server
 export PAPERLESS_TOKEN=…
 npm run smoke:gui -- --setup        # baut/aktualisiert den Vault aus dem Fixture; nur beim ersten Mal oder bei geändertem Fixture
 OBSIDIAN_PLUGIN_DIR="$STAGING_VAULTS_DIR/paperless-storage/.obsidian/plugins/paperless-storage" \
   npm run deploy                    # baut UND deployt — der Herkunfts-Guard vergleicht beides
 ```
 
-Die Embed-Punkte brauchen mindestens ein per Token erreichbares Dokument (Default `--doc 1`; Referenz-Testinstanz `https://paperless.jkaindl.de`, Dokument-ID 1).
+Die Embed-Punkte 3–5 brauchen eine Gegenstelle. Sind Server und Token in den Einstellungen gesetzt (`--setup` mit den Variablen), ist es die **echte** Instanz und braucht mindestens ein per Token erreichbares Dokument (Default `--doc 1`; Referenz-Testinstanz `https://paperless.jkaindl.de`, Dokument-ID 1). Sonst, oder mit `--demo`, fährt der Smoke gegen den lokalen Demo-Server aus `scripts/demo-paperless.ts` (Port vom Betriebssystem, Dokument 101): Er ersetzt Server und Token der Einstellungen für den Lauf und stellt sie danach zurück. Der Demo-Server prüft die Naht zum Host (`embedRegistry`, PDF-Viewer), nicht paperless selbst; die Abschlusszeile nennt die Gegenstelle („Demo“ oder „echt“).
 
 Der Cache-Ordner im Explorer ist eine Vorbedingung der Punkte 1–2c. Das Fixture hat ihn nicht, ohne Embed legt ihn niemand an. Der Treiber legt ihn bei Bedarf selbst an und räumt ihn danach wieder ab; der frühere Kaltstart-Effekt (Punkte 1/2 rot im ersten Lauf) entfällt damit.
 
@@ -118,7 +118,7 @@ Baseline. `npm run gate` durchgehend grün.
 
 ### 2026-10-12 — Obsidian 1.14.4, Plugin 0.3.2 — Treiber in vier Zuständen
 
-Baseline vor dem Umbau, ohne `PAPERLESS_URL`/`PAPERLESS_TOKEN`: Abbruch vor dem ersten Punkt ("keinen Server/Token in den Settings"), Exit 1, 12 Aufrufstellen nie erreicht. Nach dem Umbau (`createBilanz` mit 12 Soll-Punkten, `bereiteInstanzVor`, `requireVisible`, Pflicht-Port): **9 grün · 0 rot · 0 übersprungen · 3 nichts gemessen** (3–5, keine Gegenstelle), Exit 1. Ein erster Lauf ohne die Cache-Ordner-Vorbedingung zeigte 1, 2, 2b rot ("Ordner-Element nicht im Explorer gefunden") — der dokumentierte Kaltstart-Effekt; mit der Vorbedingung grün.
+Baseline vor dem Umbau, ohne `PAPERLESS_URL`/`PAPERLESS_TOKEN`: Abbruch vor dem ersten Punkt ("keinen Server/Token in den Settings"), Exit 1, 12 Aufrufstellen nie erreicht. Nach dem Umbau (`createBilanz` mit 12 Soll-Punkten, `bereiteInstanzVor`, `requireVisible`, Pflicht-Port) ohne Gegenstelle: 9 grün · 0 rot · 0 übersprungen · 3 nichts gemessen (3–5), Exit 1. Mit dem Demo-Server als Gegenstelle: **12 grün · 0 rot · 0 übersprungen · 0 nichts gemessen**, Exit 0; Gegenprobe (Vorschau-Route des Demo-Servers auf 404): genau 3 und 5 rot („Server unreachable and no cached copy available“), Punkt 4 bleibt grün (die Höhe wird unabhängig vom Viewer gesetzt). Ein erster Lauf ohne die Cache-Ordner-Vorbedingung zeigte 1, 2, 2b rot ("Ordner-Element nicht im Explorer gefunden") — der dokumentierte Kaltstart-Effekt; mit der Vorbedingung grün.
 
 ## Abweichungen zur `3d-codeblocks`-Vorlage (Material für spätere Extraktion)
 
