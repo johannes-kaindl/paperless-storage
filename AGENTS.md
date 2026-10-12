@@ -4,8 +4,7 @@ Obsidian-Plugin, das Dokumente aus einer **paperless-ngx**-Instanz nativ in Noti
 einbettet: `![[Mietvertrag.paperless]]` zeigt das PDF im Lesefluss, geladen per
 API-Token statt über öffentliche Share-Links.
 
-**Stand 05.08.2026: Spec und Plan liegen, kein Code.** Erster Handgriff ist der Spike
-(Aufgabe 2 des Plans) — er ist ein **Gate**, kein Aufwärmen.
+**Stand 0.3.2 (2026-10-03), im Community Store.** Das Plugin bettet paperless-Dokumente per `![[…paperless]]` (embedRegistry-Adapter) und als eigene FileView ein, hat einen lokalen Cache mit konfigurierbarem, ausblendbarem Cache-Ordner, die Befehle "Insert document", "Clear document cache" und "Synchronize document titles" sowie einen deklarativen Settings-Tab mit Hilfe-Zeile. Der GUI-Smoke (`npm run smoke:gui -- --port <port>`, `docs/SMOKE.md`) fährt in einer Zweitinstanz und zählt in vier Zuständen; seine Embed-Punkte brauchen eine echte paperless-Instanz.
 
 ## Vor dem Anfangen lesen
 
@@ -20,16 +19,14 @@ API-Token statt über öffentliche Share-Links.
 die bestehende Lösung übernommen. Nach dem Lösen eines nicht-trivialen Problems:
 Registry-Eintrag ergänzen.
 
-## Das Gate
+## Das Gate (Spike, beantwortet)
 
-Der ganze Entwurf hängt an einer **ungemessenen** Annahme:
+Der Entwurf hing zu Beginn (August 2026) an einer **ungemessenen** Annahme:
 
 > Lässt sich Obsidians nativer PDF-Viewer aus einem `embedRegistry`-Adapter heraus auf
 > eine Cache-Datei im Vault ansetzen?
 
-Trägt der Spike nicht, wird der Plan ab Aufgabe 9 neu geschrieben (pdf.js bündeln oder
-Codeblock-Weg). Die Entscheidungstabelle steht in Aufgabe 2. **Nicht darüber
-hinwegplanen.** Der Spike beantwortet zugleich `isDesktopOnly` fürs Manifest.
+Beantwortet: ja, der Viewer trägt (GUI-Smoke Punkt 3 seit 2026-08-06 grün gegen die echte Instanz), `isDesktopOnly` steht im Manifest auf `false`. Fällt Punkt 3 künftig rot, ist das ein Befund an dieser Annahme, kein Treiberfehler.
 
 ## Was dieses Plugin von den Nachbarn unterscheidet
 

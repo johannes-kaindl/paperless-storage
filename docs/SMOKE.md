@@ -27,66 +27,27 @@ liegenden Vaults.
 
 ## Vorbereitung
 
-⚠️ **Zuerst prüfen, wer sonst an Obsidian hängt.** Obsidian ist Single-Instance — ein
-`quit` trifft die Instanz, an der möglicherweise eine andere Session arbeitet, und zerstört
-deren Zustand. Der eigene Lauf ist danach sauber grün; der Schaden entsteht woanders und
-fällt nicht auf.
+Der Smoke läuft in einer **Zweitinstanz** mit eigenem Profil und eigenem Port, nie in der regulären Instanz: die aktuelle `.asar` der regulären Instanz ins `--user-data-dir` kopieren, den Vault `paperless-storage` aus `$STAGING_VAULTS_DIR` und `"language":"en"` in dessen `obsidian.json` eintragen, mit `--remote-debugging-port=<port>` starten und den CDP-Lock für den eigenen Port halten. Vertrauensdialog und Restricted Mode erledigt der Treiber (`bereiteInstanzVor`).
 
 ```bash
-lsof -nP -iTCP:9222 -sTCP:LISTEN >/dev/null && echo "läuft bereits — NICHT beenden"
-```
-
-Hört der Port schon, dann **mitnutzen statt neu starten** — und zwar ohne Quit. Gemessen
-am 2026-09-02 mit fünf fremden Vault-Fenstern auf demselben Port: ein `obsidian://`-URI mit
-**Pfad** (nicht mit Vault-Namen) öffnet den Staging-Vault als zusätzliches Fenster derselben
-Instanz, registriert ihn dabei und holt ihn nach vorn. Die fremden Sitzungen bleiben
-unberührt, der Treiber dockt per `--vault` am Namen an.
-
-```bash
-lsof -nP -iTCP:9222 -sTCP:LISTEN >/dev/null && echo "läuft bereits — NICHT beenden"
-curl -s http://127.0.0.1:9222/json/list | python3 -c "
-import json,sys
-for t in json.load(sys.stdin):
-    if t.get('type') == 'page': print(' ·', t.get('title'))"
-```
-
-Die zweite Zeile beantwortet die Frage, die die Port-Prüfung offenlässt: der Fenstertitel
-trägt den Vault-Namen, also sieht man, wen ein Quit träfe. ⚠️ Der CDP-Lock beantwortet sie
-**nicht** — den hält nur, wer gerade misst, und ein offenes Fenster ist keine Messung.
-
-```bash
-export PAPERLESS_URL=https://paperless.jkaindl.de
+export PAPERLESS_URL=https://…      # Test-Server; ohne beide Variablen sind die Embed-Punkte 3–5 "nichts gemessen"
 export PAPERLESS_TOKEN=…
-npm run smoke:gui -- --setup      # baut/aktualisiert den Vault; nur beim ersten Mal oder
-                                  # wenn sich Fixture/Zugangsdaten geändert haben
+npm run smoke:gui -- --setup        # baut/aktualisiert den Vault aus dem Fixture; nur beim ersten Mal oder bei geändertem Fixture
 OBSIDIAN_PLUGIN_DIR="$STAGING_VAULTS_DIR/paperless-storage/.obsidian/plugins/paperless-storage" \
-  npm run deploy                  # baut UND deployt — der Herkunfts-Guard vergleicht beides
-open "obsidian://open?path=$(python3 -c 'import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1],safe=""))' \
-  "$STAGING_VAULTS_DIR/paperless-storage/Welcome.md")"
+  npm run deploy                    # baut UND deployt — der Herkunfts-Guard vergleicht beides
 ```
 
-Läuft **gar kein** Obsidian, tut es der gewohnte Start
-(`open -a Obsidian --args --remote-debugging-port=9222`).
+Die Embed-Punkte brauchen mindestens ein per Token erreichbares Dokument (Default `--doc 1`; Referenz-Testinstanz `https://paperless.jkaindl.de`, Dokument-ID 1).
 
-⚠️ `obsidian://open?vault=<name>` funktioniert bei einem frisch gebauten Vault **nicht** — er
-steht dann noch nicht in `obsidian.json`, und der URI tut schlicht nichts. Der Pfad-URI oben
-registriert ihn; danach greift auch der Name. Den Eintrag von Hand in `obsidian.json` zu
-schreiben hilft nicht: Obsidian liest die Datei nur beim Start.
-
-Braucht mindestens ein per Token erreichbares Dokument (Default `--doc 1`).
-Referenz-Testinstanz: `https://paperless.jkaindl.de`, Dokument-ID 1 ("notes-to-media").
-
-⚠️ **Cold-Start-Effekt auf einem frischen Vault:** Checks 1/2 (Cache-Ordner-Sichtbarkeit)
-schlagen im allerersten Lauf gegen einen neu gebauten Vault fehl
-(„Ordner-Element nicht im Explorer gefunden") — der Cache-Ordner existiert erst, nachdem
-ein Dokument einmal geladen wurde. Ein zweiter Lauf direkt danach ist grün. Kein Defekt,
-kein Migrations-Regress — gemessen 2026-08-18 bei der Umstellung auf den Fixture-Vault.
+Der Cache-Ordner im Explorer ist eine Vorbedingung der Punkte 1–2c. Das Fixture hat ihn nicht, ohne Embed legt ihn niemand an. Der Treiber legt ihn bei Bedarf selbst an und räumt ihn danach wieder ab; der frühere Kaltstart-Effekt (Punkte 1/2 rot im ersten Lauf) entfällt damit.
 
 ## Lauf
 
 ```bash
-npm run smoke:gui -- --port 9222 --vault paperless-storage
+npm run smoke:gui -- --port <port>
 ```
+
+Die Bilanz hat vier Zustände (grün, rot, übersprungen, nichts gemessen); die Soll-Liste ist der Nenner. Exit 1 bei Rot oder "nichts gemessen", Exit 2 bei Abbruch.
 
 ## Prüfpunkte
 
@@ -154,6 +115,10 @@ deaktiviert, wodurch Obsidians Standard-Lesezeichen-Panel eine zweite
 als „eindeutig" vorausgesetzt) fand dadurch das falsche Element. Nach dem Fix (`bookmarks`,
 `properties`, `canvas` ergänzt) und einem zweiten Lauf: **8/8 grün**, identisch zur
 Baseline. `npm run gate` durchgehend grün.
+
+### 2026-10-12 — Obsidian 1.14.4, Plugin 0.3.2 — Treiber in vier Zuständen
+
+Baseline vor dem Umbau, ohne `PAPERLESS_URL`/`PAPERLESS_TOKEN`: Abbruch vor dem ersten Punkt ("keinen Server/Token in den Settings"), Exit 1, 12 Aufrufstellen nie erreicht. Nach dem Umbau (`createBilanz` mit 12 Soll-Punkten, `bereiteInstanzVor`, `requireVisible`, Pflicht-Port): **9 grün · 0 rot · 0 übersprungen · 3 nichts gemessen** (3–5, keine Gegenstelle), Exit 1. Ein erster Lauf ohne die Cache-Ordner-Vorbedingung zeigte 1, 2, 2b rot ("Ordner-Element nicht im Explorer gefunden") — der dokumentierte Kaltstart-Effekt; mit der Vorbedingung grün.
 
 ## Abweichungen zur `3d-codeblocks`-Vorlage (Material für spätere Extraktion)
 
