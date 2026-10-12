@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Kit vendoring raised from `obsidian-kit` 0.37.1 to 0.57.0 and from `code-kit` 0.5.0 to 0.24.0. Nothing changes for users: the Kit's folder-hiding module now also accepts a list of folders, which this plugin does not use (it still passes the single cache folder, so the generated rule is the same). The gate and tests ran green before (70) and after (72; the two new tests cover the cache-folder rule following a changed setting).
+
 ## [0.3.2] — 2026-10-03
 
 ### Added
