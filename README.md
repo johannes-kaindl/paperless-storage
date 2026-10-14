@@ -98,7 +98,7 @@ for that dialog.
 | Setting | Effect | Default |
 |---|---|---|
 | Server URL | Base URL of your paperless-ngx instance. | *(empty)* |
-| API token | Token for that instance, created under paperless' own settings. | *(empty)* |
+| API token | Token for that instance, created under paperless' own settings. Stored in Obsidian's keychain on this device (enter it again on each device); Obsidian before 1.11.4 has no keychain, so the token stays in the plugin's `data.json` there. | *(empty)* |
 | Cache folder | Vault folder where downloaded PDFs are cached. | `_paperless-storage/` |
 | Hide cache folder | Hides the cache folder in the file explorer (it stays a normal, syncable folder — only the display is suppressed). | on |
 | File version | Which version of the document to embed and cache — the searchable archive PDF, or the original file. | Archive |

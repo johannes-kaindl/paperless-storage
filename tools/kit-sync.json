@@ -15,7 +15,9 @@
       "modules": [
         "i18n",
         "error_body",
-        "settings"
+        "settings",
+        "secrets",
+        "secret-value"
       ]
     },
     {

@@ -26,6 +26,7 @@ async function loaded(lang: "en" | "de" = "en") {
   const app = {
     workspace: { rootSplit: { doc: {} }, onLayoutReady: (cb: () => void) => cb() },
     vault: { getFiles: () => [{ path: "_paperless-storage/1.pdf", extension: "pdf" }], getAbstractFileByPath: () => null },
+    secretStorage: (() => { const m = new Map<string, string>(); return { getSecret: (id: string) => m.get(id) ?? null, setSecret: (id: string, v: string) => void m.set(id, v), listSecrets: () => [...m.keys()] }; })(),
     fileManager: { trashFile: (f: { path: string }) => { trashed.push(f.path); return Promise.resolve(); } },
   };
   const p = new PaperlessStoragePlugin(app as never, { id: "paperless-storage", dir: "plugins/paperless-storage" } as never);

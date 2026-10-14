@@ -3,6 +3,7 @@ import {
   DEFAULT_SETTINGS,
   isConfigured,
   resolveCacheFolder,
+  API_TOKEN_SECRET_ID,
   type PaperlessSettings,
 } from "../core/settings";
 import { mergeSettings } from "../vendor/kit/settings";
@@ -14,6 +15,8 @@ import { PaperlessFileView, VIEW_TYPE_PAPERLESS } from "./file-view";
 import { PaperlessSettingTab } from "./settings-tab";
 import { installFolderHide, type FolderHideHandle } from "../vendor/kit-obsidian/folder-hide";
 import { confirmAction } from "../vendor/kit-obsidian/confirm";
+import { loadSecretValue, persistSecretValue } from "../vendor/kit/secret-value";
+import { obsidianSecretStoreOrNull } from "./secret-store";
 import { searchRequest } from "../core/paperless-api";
 import { PaperlessHttpError, describeHttpError } from "../core/errors";
 import { runTitleSync } from "./title-sync-runner";
@@ -25,6 +28,15 @@ export default class PaperlessStoragePlugin extends Plugin {
 
   async onload(): Promise<void> {
     this.settings = mergeSettings(DEFAULT_SETTINGS, await this.loadData());
+    // Der API-Token gehoert in Obsidians Schluesselbund (ab 1.11.4), nicht in data.json (Klartext, wandert
+    // mit jedem Vault-Sync). Ein Altwert wird beim ersten Laden hinuebergehoben und in der Datei geleert;
+    // im Speicher steht er weiter unter `settings.apiToken`, die Netzwege aendern sich nicht. Der Floor
+    // bleibt 1.8.7: Formpruefung statt Versionspruefung, aeltere Versionen behalten Klartext mit Hinweis.
+    const tokenLoad = loadSecretValue(this.settings.apiToken, this.secretStore(), API_TOKEN_SECRET_ID);
+    this.settings.apiToken = tokenLoad.value;
+    if (tokenLoad.error !== undefined) console.warn(`[paperless-storage] API token stays in data.json — ${tokenLoad.error}`);
+    if (tokenLoad.dirty) await this.saveSettings();
+    if (tokenLoad.state === "plaintext") this.app.workspace.onLayoutReady(() => new Notice(t("notice.tokenPlaintext")));
     // Sprachdetektion lebt in der obsidian-Schicht und laeuft einmalig beim onload
     // (PROF-OBS-07) — der reine i18n-Kern kennt obsidian nicht.
     setLang(pickLang(getLanguage()));
@@ -152,7 +164,18 @@ export default class PaperlessStoragePlugin extends Plugin {
     });
   }
 
+  /** Der Schluesselbund, oder `null`, wenn diese Obsidian-Version keinen hat (der Token bleibt dann in data.json). */
+  private secretStore(): ReturnType<typeof obsidianSecretStoreOrNull> {
+    return obsidianSecretStoreOrNull(this.app);
+  }
+
   async saveSettings(): Promise<void> {
-    await this.saveData(this.settings);
+    // Token in den Schluesselbund, data.json ohne ihn; im Speicher bleibt er (nur Zeilenumbrueche
+    // entfernt, wie der Schluesselbund es tut). Verweigert der Schluesselbund den Wert, bleibt er in
+    // data.json (Klartext mit Warnung, kein stiller Verlust).
+    const stored = persistSecretValue(this.settings.apiToken, this.secretStore(), API_TOKEN_SECRET_ID);
+    this.settings.apiToken = stored.value;
+    if (stored.error !== undefined) console.warn(`[paperless-storage] API token ${stored.state === "kept" ? "stays in data.json" : "could not be updated"} — ${stored.error}`);
+    await this.saveData({ ...this.settings, apiToken: stored.persisted });
   }
 }

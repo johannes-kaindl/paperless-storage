@@ -2,7 +2,7 @@
   "source": "code-kit",
   "version": "0.27.1",
   "sha": "ac89f10",
-  "vendored": "i18n.ts, error_body.ts, settings.ts",
+  "vendored": "i18n.ts, error_body.ts, settings.ts, secrets.ts, secret-value.ts",
   "note": "Verbatim snapshot aus ZWEI Quellen. Never hand-edit. Pins in tools/kit-sync.json, re-vendor via tools/sync-kit.sh (zentrales kit-sync im Dach). Seit obsidian-kit 2ab1bb5 liegt die domaenenfreie pure-Teilmenge in code-kit; welche Datei woher stammt, sagt ihr eigener Kopf. endpoint_config bewusst NICHT vendored: sein authHeaders() erzeugt 'Bearer', paperless braucht 'Token'.",
   "obsidian_kit_version": "0.60.1",
   "obsidian_kit_sha": "4dfbd4e",

@@ -14,6 +14,9 @@ export interface PaperlessSettings {
   embedHeight: number | null;
 }
 
+/** Feste ID des Schluesselbund-Eintrags: lowercase-alphanumerisch mit Bindestrichen, wie SecretStorage sie verlangt. */
+export const API_TOKEN_SECRET_ID = "paperless-storage-api-token";
+
 export const DEFAULT_SETTINGS: PaperlessSettings = {
   serverUrl: "",
   apiToken: "",

@@ -3,6 +3,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TFile } from "obsidian";
 import { confirmAction } from "../../src/vendor/kit-obsidian/confirm";
+const MockFile = TFile as unknown as new (path: string, extension?: string) => TFile;
 import { runTitleSync } from "../../src/obsidian/title-sync-runner";
 import { DEFAULT_SETTINGS } from "../../src/core/settings";
 
@@ -17,10 +18,10 @@ function setup(serverTitles: Record<number, string>, extraDocs = 0) {
     texts.set(`Doc ${i}.paperless`, JSON.stringify({ id: i, title: `Alt ${i}` }));
     serverTitles[i] = `Neu ${i}`;
   }
-  const files = new Map([...texts.keys()].map((p) => [p, new TFile(p, "paperless")]));
+  const files = new Map([...texts.keys()].map((p) => [p, new MockFile(p, "paperless")]));
   const order: string[] = [];
-  const adapter = { write: vi.fn((p: string) => { order.push(`backup:${p}`); return Promise.resolve(); }) };
-  const renameFile = vi.fn((f: TFile, to: string) => { order.push(`rename:${f.path}`); files.set(to, new TFile(to, "paperless")); texts.set(to, texts.get(f.path) ?? ""); return Promise.resolve(); });
+  const adapter = { write: vi.fn((p: string, _content?: string) => { order.push(`backup:${p}`); return Promise.resolve(); }) };
+  const renameFile = vi.fn((f: TFile, to: string) => { order.push(`rename:${f.path}`); files.set(to, new MockFile(to, "paperless")); texts.set(to, texts.get(f.path) ?? ""); return Promise.resolve(); });
   const modify = vi.fn(() => Promise.resolve());
   const app = {
     vault: {
@@ -61,7 +62,7 @@ describe("runTitleSync — Vorschau, Rueckfrage, Schnappschuss", () => {
   it("die Sicherung enthaelt Pfad und alten Inhalt", async () => {
     const t = setup({ 1: "Neu A" });
     await runTitleSync(t.deps);
-    const written = JSON.parse(t.adapter.write.mock.calls[0]?.[1] as unknown as string) as { items: { path: string; content: string }[] };
+    const written = JSON.parse(t.adapter.write.mock.calls[0]?.[1] as string) as { items: { path: string; content: string }[] };
     expect(written.items).toEqual([{ path: "Doc A.paperless", content: JSON.stringify({ id: 1, title: "Alt A" }) }]);
   });
 

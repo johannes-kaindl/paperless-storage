@@ -64,6 +64,8 @@ Die Bilanz hat vier Zustände (grün, rot, übersprungen, nichts gemessen); die 
    ~300–600 ms und ~1 s nach dem Laden — gemessen bei der Phase-2-Abnahme).
 5. FileView öffnet eine `.paperless`-Datei im ganzen Pane (dasselbe Signal wie 3, aber
    auf `.view-content` statt `.internal-embed`).
+9. Geänderte Prüfsumme lädt das Dokument neu, eine unveränderte nicht (nur gegen den Demo-Server;
+   Zählung der Abrufe, Sidecar `<id>.json` neben dem Cache-PDF). Gegen eine echte Instanz „nichts gemessen“.
 
 Nicht automatisiert (Hand-Runde bleibt nötig): Suchmodal-Bedienung, Titel-Synchronisation
 (`renameFile`-Dialog blockiert unbegrenzt, s. `_docs/docs/obsidian-api-gotchas.md`),

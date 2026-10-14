@@ -36,7 +36,7 @@ function setup(opts: { cached?: boolean; sidecar?: string; serverChecksum?: stri
   return { run, container, deps, transport, binary, cache, sidecars, setServer: (c: string) => { serverChecksum = c; } };
 }
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => { vi.clearAllMocks(); });
 
 describe("renderStub — Pruefsumme im Sidecar", () => {
   it("laedt ohne Cache und haelt die Pruefsumme der geladenen Bytes fest", async () => {
