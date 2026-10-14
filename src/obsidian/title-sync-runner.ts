@@ -10,13 +10,19 @@ import { planTitleSync, type StubRecord } from "../core/title-sync";
 import { isConfigured, type PaperlessSettings } from "../core/settings";
 import { PaperlessHttpError } from "../core/errors";
 import { t } from "../core/i18n";
+import { confirmAction } from "../vendor/kit-obsidian/confirm";
 import type { Transport } from "./http";
 
 export interface TitleSyncDeps {
   app: App;
   transport: Transport;
   settings: () => PaperlessSettings;
+  /** Ordner fuer die Sicherung vor dem Umbenennen (der Plugin-Ordner). */
+  backupDir: string;
 }
+
+/** Zeilen der Vorschau: so viele aelter->neuer Titel, dann "… und N weitere". */
+const PREVIEW_LINES = 8;
 
 export async function runTitleSync(deps: TitleSyncDeps): Promise<void> {
   const settings = deps.settings();
@@ -61,6 +67,31 @@ export async function runTitleSync(deps: TitleSyncDeps): Promise<void> {
   const plans = planTitleSync(stubs, metaById);
   const stubByPath = new Map(stubs.map((s) => [s.path, s.stub]));
   let renamed = 0;
+
+  if (plans.length > 0) {
+    // Vorschau und Rueckfrage: das Umbenennen aendert Dateinamen und Inhalt, und Obsidian zieht
+    // alle Links im Vault nach — das gehoert nicht ohne Frage in einen Befehl.
+    const lines = plans.slice(0, PREVIEW_LINES).map((p) => `${stubByPath.get(p.path)?.title ?? p.path} → ${p.newTitle}`);
+    if (plans.length > PREVIEW_LINES) lines.push(t("confirm.titles.more", plans.length - PREVIEW_LINES));
+    const go = await confirmAction(deps.app, {
+      title: t("confirm.titles.title"),
+      message: [t("confirm.titles.body", plans.length), ...lines],
+      confirmLabel: t("confirm.titles.ok"),
+      cancelLabel: t("confirm.cancel"),
+      warning: false,
+    });
+    if (!go) return;
+    // Schnappschuss: die bisherigen Pfade und Inhalte, bevor etwas veraendert wird. Gelingt die
+    // Sicherung nicht, wird nichts umbenannt.
+    const backupPath = `${deps.backupDir}/title-sync-backup-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+    const items: { path: string; content: string }[] = [];
+    for (const plan of plans) {
+      const file = deps.app.vault.getAbstractFileByPath(plan.path);
+      if (file instanceof TFile) items.push({ path: plan.path, content: await deps.app.vault.cachedRead(file) });
+    }
+    await deps.app.vault.adapter.write(backupPath, JSON.stringify({ items }, null, 2) + "\n");
+    new Notice(t("notice.titleBackup", backupPath));
+  }
 
   for (const plan of plans) {
     const file = deps.app.vault.getAbstractFileByPath(plan.path);

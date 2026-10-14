@@ -729,6 +729,13 @@ async function main(): Promise<void> {
       stillThere?: boolean;
     }
     const trash = await cdp.evaluate<TrashProbe>(`
+      // Die Einstellungen aus Punkt 6/7 koennen als eigenes Fenster offen stehen; ein Dialog oeffnet sich
+      // dann dort, nicht im Hauptfenster, das dieser Treiber liest.
+      app.setting?.close?.();
+      // Nach dem Schliessen bleibt activeDocument auf dem Einstellungsfenster stehen, bis das Hauptfenster
+      // ein focus-Ereignis sieht (gemessen: ohne es oeffnet der Dialog im unsichtbaren Fenster).
+      window.dispatchEvent(new Event("focus"));
+      await new Promise((r) => setTimeout(r, 300));
       const p = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}];
       p.settings.cacheFolder = ${JSON.stringify(SMOKE_CACHE_FOLDER)};
       await p.saveSettings();
@@ -757,6 +764,9 @@ async function main(): Promise<void> {
         const deadline = Date.now() + 8000;
         while (Date.now() < deadline && app.vault.getAbstractFileByPath(victimPath)) {
           await new Promise((r) => setTimeout(r, 100));
+          // Rückfrage vor dem Leeren (seit Welle 22): im Dialog bestätigen.
+          const go = [...document.querySelectorAll(".modal-container button")].find((b) => /^(remove|entfernen)$/i.test((b.textContent || "").trim()));
+          if (go) go.click();
         }
       } finally {
         fm.trashFile = originalTrash;

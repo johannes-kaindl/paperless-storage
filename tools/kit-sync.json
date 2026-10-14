@@ -34,7 +34,8 @@
       "from": "src/obsidian",
       "modules": [
         "help-setting",
-        "folder-hide"
+        "folder-hide",
+        "confirm"
       ],
       "vendorJson": "src/vendor/kit"
     },

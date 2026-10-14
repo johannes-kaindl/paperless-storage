@@ -5,3 +5,21 @@
   border-radius: var(--radius-s);
   font-size: var(--font-ui-small);
 }
+
+/* Status-Indikator (UI-STANDARD § 8): Icon (Form) UND Farbe UND Klasse UND Text. */
+.paperless-storage-message {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--size-4-2);
+}
+.paperless-storage-status-icon { display: inline-flex; align-items: center; }
+.paperless-storage-message.is-error .paperless-storage-status-icon { color: var(--text-error); }
+.paperless-storage-message.is-warning .paperless-storage-status-icon { color: var(--text-warning); }
+.paperless-storage-message.is-ok .paperless-storage-status-icon { color: var(--text-success); }
+.paperless-storage-message.is-checking .paperless-storage-status-icon { color: var(--text-muted); }
+/* is-checking muss sich BEWEGEN: ein stehendes loader-Symbol sagt "Zustand", nicht "laeuft noch". */
+.paperless-storage-message.is-checking .paperless-storage-status-icon svg { animation: paperless-storage-spin 1s linear infinite; }
+@keyframes paperless-storage-spin { to { transform: rotate(360deg); } }
+.paperless-storage-message-text { flex: 1 1 auto; }
+.paperless-storage-message-action { flex: 0 0 auto; }

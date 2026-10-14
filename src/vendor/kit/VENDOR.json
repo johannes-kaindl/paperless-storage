@@ -6,5 +6,5 @@
   "note": "Verbatim snapshot aus ZWEI Quellen. Never hand-edit. Pins in tools/kit-sync.json, re-vendor via tools/sync-kit.sh (zentrales kit-sync im Dach). Seit obsidian-kit 2ab1bb5 liegt die domaenenfreie pure-Teilmenge in code-kit; welche Datei woher stammt, sagt ihr eigener Kopf. endpoint_config bewusst NICHT vendored: sein authHeaders() erzeugt 'Bearer', paperless braucht 'Token'.",
   "obsidian_kit_version": "0.57.0",
   "obsidian_kit_sha": "004fdb1",
-  "obsidian_kit_vendored": "folder-suggest.ts, settings_walker.ts, help-setting.ts, folder-hide.ts, folder-hide.ts, obsidian-mock.ts"
+  "obsidian_kit_vendored": "folder-suggest.ts, settings_walker.ts, help-setting.ts, folder-hide.ts, confirm.ts, folder-hide.ts, obsidian-mock.ts"
 }

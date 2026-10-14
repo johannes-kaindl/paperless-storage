@@ -2,7 +2,7 @@
 // Muster „Adapter um einen Kern" aus 3d-codeblocks. Fehlerbehandlung, Ladezustand und
 // Cache-Logik liegen dadurch an genau einer Stelle.
 
-import { Component, TFile, type App } from "obsidian";
+import { Component, TFile, setIcon, type App } from "obsidian";
 import { parseStub, StubParseError } from "../core/stub";
 import { cachePath, needsRefresh } from "../core/cache-policy";
 import { documentFileRequest, documentMetaRequest, parseDocumentMeta } from "../core/paperless-api";
@@ -76,8 +76,11 @@ export async function renderStub(
   containerEl.empty();
   const settings = deps.settings();
 
+  const retry: MessageAction = { label: t("retry"), run: () => { void renderStub(deps, stubFile, containerEl, parent); } };
+  const openSettings: MessageAction = { label: t("openSettings"), run: () => { openPluginSettings(deps.app); } };
+
   if (!isConfigured(settings)) {
-    message(containerEl, t("notConfigured"));
+    message(containerEl, t("notConfigured"), "warning", [openSettings]);
     return;
   }
 
@@ -85,11 +88,11 @@ export async function renderStub(
   try {
     stub = parseStub(await deps.app.vault.cachedRead(stubFile));
   } catch (e) {
-    message(containerEl, t("brokenStub", e instanceof StubParseError ? e.message : String(e)));
+    message(containerEl, t("brokenStub", e instanceof StubParseError ? e.message : String(e)), "error");
     return;
   }
 
-  const loading = message(containerEl, t("loading"));
+  const loading = message(containerEl, t("loading"), "checking");
   const cfg = { serverUrl: settings.serverUrl, apiToken: settings.apiToken };
   const path = cachePath(resolveCacheFolder(settings), stub.id, settings.fileVersion);
 
@@ -117,18 +120,19 @@ export async function renderStub(
     const knownChecksum = hasCache ? ((await deps.cache.readChecksum(path)) ?? stub.checksum) : undefined;
 
     if (authFailed && !hasCache) {
-      loading.setText(t("invalidToken"));
+      show(loading, t("invalidToken"), "error", [openSettings, retry]);
       return;
     }
     if (missing && !hasCache) {
-      loading.setText(t("notFound", String(stub.id)));
+      show(loading, t("notFound", String(stub.id)), "error");
       return;
     }
 
     // Metadaten sind aus irgendeinem Grund nicht zu bekommen, aber ein Cache existiert:
     // Ursache dem Nutzer sichtbar lassen, statt die Notiz kommentarlos aus dem Cache zu
     // fuellen — sonst bleibt ein abgelehnter Token oder eine tote Verbindung unbemerkt.
-    let cacheNotice: string | null = meta === null && hasCache ? (authFailed ? t("invalidToken") : t("offline")) : null;
+    let cacheNotice: { text: string; settings: boolean } | null =
+      meta === null && hasCache ? (authFailed ? { text: t("invalidToken"), settings: true } : { text: t("offline"), settings: false }) : null;
 
     // Ein Cache ohne bekannte Pruefsumme (aus einer Version vor dem Sidecar) wird einmal neu geladen,
     // sobald der Server erreichbar ist: sonst bliebe er fuer immer ungeprueft, weil nie jemand die
@@ -142,10 +146,10 @@ export async function renderStub(
         );
       } catch {
         if (!deps.cache.has(path)) {
-          loading.setText(t("noCacheOffline"));
+          show(loading, t("noCacheOffline"), "error", [retry]);
           return;
         }
-        cacheNotice = t("offline");
+        cacheNotice = { text: t("offline"), settings: false };
       }
       if (bytes) {
         // Schreibfehler (volle Platte, schreibgeschuetzter Vault) sind KEIN Netzproblem —
@@ -155,8 +159,7 @@ export async function renderStub(
         try {
           await deps.cache.store(path, bytes);
         } catch (e) {
-          loading.remove();
-          showUncachedNotice(containerEl, e);
+          show(loading, t("cacheWriteFailed", String(e)), "error", [retry]);
           return;
         }
         cacheNotice = null;
@@ -175,14 +178,14 @@ export async function renderStub(
 
     const cached = deps.cache.file(path);
     if (!cached) {
-      loading.setText(t("noCacheOffline"));
+      show(loading, t("noCacheOffline"), "error", [retry]);
       return;
     }
 
     // Der Hinweis bleibt stehen (nicht loading.remove()), sonst verschwindet er im selben
     // Zug, in dem er gesetzt wurde, und ist fuer den Nutzer nie sichtbar.
     if (cacheNotice) {
-      loading.setText(cacheNotice);
+      show(loading, cacheNotice.text, "warning", cacheNotice.settings ? [openSettings, retry] : [retry]);
     } else {
       loading.remove();
     }
@@ -190,14 +193,44 @@ export async function renderStub(
   });
 }
 
-function message(containerEl: HTMLElement, text: string): HTMLElement {
-  return containerEl.createDiv({ cls: "paperless-storage-message", text });
+/** Zustandsvokabel aus UI-STANDARD § 8 (Status-Indikator): Form UND Farbe UND Klasse UND Text. */
+type MessageKind = "checking" | "ok" | "warning" | "error";
+const MESSAGE_ICON: Record<MessageKind, string> = {
+  checking: "loader", ok: "circle-check", warning: "alert-triangle", error: "circle-x",
+};
+interface MessageAction {
+  label: string;
+  run: () => void;
 }
 
-/** Der Download lief, nur das Ablegen im Vault schlug fehl — als solches benennen. Es gibt dabei
- *  KEINE Anzeige ohne Cache: der Aufrufer zeigt nur diese Meldung, nicht das PDF. */
-function showUncachedNotice(containerEl: HTMLElement, error: unknown): void {
-  message(containerEl, t("cacheWriteFailed", String(error)));
+/** Die ID dieses Plugins fuer `app.setting.openTabById`. */
+const PLUGIN_ID = "paperless-storage";
+
+/** Oeffnet die Plugin-Einstellungen. `app.setting` ist nicht Teil der oeffentlichen Typen: mit
+ *  Feature-Detection, damit sein Verschwinden nur den Knopf wirkungslos macht. */
+function openPluginSettings(app: App): void {
+  const setting = (app as unknown as { setting?: { open?: () => void; openTabById?: (id: string) => void } }).setting;
+  setting?.open?.();
+  setting?.openTabById?.(PLUGIN_ID);
+}
+
+/** Zeichnet (oder ersetzt) eine Meldung mit Icon, `is-*`-Klasse, `aria-live` und optionalen Knoepfen. */
+function show(el: HTMLElement, text: string, kind: MessageKind, actions: MessageAction[] = []): HTMLElement {
+  el.empty();
+  for (const k of ["checking", "ok", "warning", "error"] as const) el.removeClass(`is-${k}`);
+  el.addClass(`is-${kind}`);
+  el.setAttribute("role", "status");
+  el.setAttribute("aria-live", "polite");
+  setIcon(el.createSpan({ cls: "paperless-storage-status-icon" }), MESSAGE_ICON[kind]);
+  el.createSpan({ cls: "paperless-storage-message-text", text });
+  for (const action of actions) {
+    el.createEl("button", { cls: "paperless-storage-message-action", text: action.label }).addEventListener("click", action.run);
+  }
+  return el;
+}
+
+function message(containerEl: HTMLElement, text: string, kind: MessageKind = "error", actions: MessageAction[] = []): HTMLElement {
+  return show(containerEl.createDiv({ cls: "paperless-storage-message" }), text, kind, actions);
 }
 
 /**
@@ -214,7 +247,7 @@ function showPdf(
   const registry = (app as unknown as { embedRegistry?: EmbedRegistry }).embedRegistry;
   const creator = registry?.embedByExtension?.["pdf"];
   if (!creator) {
-    message(containerEl, "PDF viewer unavailable in this Obsidian version.");
+    message(containerEl, t("viewerUnavailable"), "error");
     return;
   }
   const child = creator({ app, containerEl, linktext: file.path, sourcePath: file.path }, file);

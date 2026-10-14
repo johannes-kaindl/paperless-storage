@@ -25,13 +25,16 @@ import {
 import type { PaperlessSettings } from "../core/settings";
 import { renderSettingDefinitions } from "../vendor/kit-obsidian/settings_walker";
 import { FolderSuggest } from "../vendor/kit-obsidian/folder-suggest";
-import { HELP_SETTING_TEXTS_EN, githubHelpUrls, helpSettingDefinition } from "../vendor/kit-obsidian/help-setting";
+import { githubHelpUrls, helpSettingDefinition } from "../vendor/kit-obsidian/help-setting";
+import { t } from "../core/i18n";
 
 export interface SettingsHost extends Plugin {
   settings: PaperlessSettings;
   saveSettings(): Promise<void>;
   /** Wendet den aktuellen hideCacheFolder-Zustand sofort an (kein Neustart nötig). */
   applyCacheFolderVisibility(): void;
+  /** Prueft Server-URL und Token mit einer Suchanfrage und meldet das Ergebnis als Notice. */
+  testConnection(): Promise<void>;
 }
 
 export class PaperlessSettingTab extends PluginSettingTab {
@@ -47,42 +50,57 @@ export class PaperlessSettingTab extends PluginSettingTab {
   // Tippfehler bricht den Build, statt zur Laufzeit stumm ins Leere zu greifen.
   getSettingDefinitions(): SettingDefinitionItem<keyof PaperlessSettings>[] {
     return [
-      // UI-STANDARD §8: die Hilfe-Zeile steht vor jeder anderen Zeile. Die Settings sind nur
-      // englisch, also auch die Zeile (kein DE-Text über englischen Zeilen).
-      helpSettingDefinition({ ...githubHelpUrls("paperless-storage"), texts: HELP_SETTING_TEXTS_EN }),
+      // UI-STANDARD §8: die Hilfe-Zeile steht vor jeder anderen Zeile.
+      helpSettingDefinition({
+        ...githubHelpUrls("paperless-storage"),
+        texts: {
+          name: t("settings.help.name"),
+          desc: t("settings.help.desc"),
+          openDocs: t("settings.help.openDocs"),
+          reportIssue: t("settings.help.reportIssue"),
+        },
+      }),
       {
-        name: "Server URL",
-        desc: "Base URL of your paperless-ngx instance, e.g. https://paperless.example.org",
-        control: { type: "text", key: "serverUrl", placeholder: "https://paperless.example.org" },
+        name: t("settings.url"),
+        desc: t("settings.url.desc"),
+        control: { type: "text", key: "serverUrl", placeholder: t("settings.url.placeholder") },
       },
       {
-        name: "API token",
-        desc: "Create one in paperless under settings. Stored in this plugin's data.json.",
+        name: t("settings.token"),
+        desc: t("settings.token.desc"),
         render: (setting) => this.renderApiToken(setting),
       },
       {
-        name: "Cache folder",
-        desc: "Vault folder where downloaded pdfs are cached.",
+        name: t("settings.cache"),
+        desc: t("settings.cache.desc"),
         render: (setting) => this.renderCacheFolder(setting),
       },
       {
-        name: "Hide cache folder",
-        desc: "Hide the cache folder in the file explorer.",
+        name: t("settings.hide"),
+        desc: t("settings.hide.desc"),
         control: { type: "toggle", key: "hideCacheFolder" },
       },
       {
-        name: "File version",
-        desc: "Which version of the document to embed and cache.",
+        name: t("settings.version"),
+        desc: t("settings.version.desc"),
         control: {
           type: "dropdown",
           key: "fileVersion",
-          options: { archive: "Archive (searchable PDF)", original: "Original" },
+          options: { archive: t("settings.version.archive"), original: t("settings.version.original") },
         },
       },
       {
-        name: "Default embed height",
-        desc: "Height in pixels for embedded documents. Leave empty for Obsidian's default.",
+        name: t("settings.height"),
+        desc: t("settings.height.desc"),
         render: (setting) => this.renderEmbedHeight(setting),
+      },
+      {
+        name: t("settings.test"),
+        desc: t("settings.test.desc"),
+        aliases: ["connection", "verbindung", "test", "ping"],
+        render: (setting) => {
+          setting.addButton((b) => b.setButtonText(t("settings.test.button")).onClick(() => void this.host.testConnection()));
+        },
       },
     ];
   }
@@ -112,7 +130,7 @@ export class PaperlessSettingTab extends PluginSettingTab {
   private renderCacheFolder(setting: Setting): void {
     setting.addText((text) => {
       text
-        .setPlaceholder("_paperless-storage/")
+        .setPlaceholder(t("settings.cache.placeholder"))
         .setValue(this.host.settings.cacheFolder)
         .onChange(async (value) => {
           this.host.settings.cacheFolder = value;
@@ -126,7 +144,7 @@ export class PaperlessSettingTab extends PluginSettingTab {
   private renderEmbedHeight(setting: Setting): void {
     setting.addText((text) =>
       text
-        .setPlaceholder("Obsidian default")
+        .setPlaceholder(t("settings.height.placeholder"))
         .setValue(this.host.settings.embedHeight === null ? "" : String(this.host.settings.embedHeight))
         .onChange(async (value) => {
           const trimmed = value.trim();
