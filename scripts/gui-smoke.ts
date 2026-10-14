@@ -52,7 +52,7 @@ import { DEMO_TOKEN, startDemoServer, type DemoServer } from "./demo-paperless.j
 // importiert, nicht vendored: sie ist plugin-neutral und lief zuvor byte-identisch in
 // sechs Repos. Fehlt das Dach (fremder Checkout), bricht esbuild beim Auflösen ab — das
 // ist die gewollte Meldung. Was ihr fehlt, wird DORT ergänzt, nicht hier nachgebaut.
-import { Cdp, attachTo, bereiteInstanzVor, pollUntil, requireVisible } from "../../tools/obsidian-cdp/cdp.js";
+import { Cdp, attachTo, beimAbbruch, bereiteInstanzVor, istAbgebrochen, pollUntil, requireVisible } from "../../tools/obsidian-cdp/cdp.js";
 import { createBilanz, parseArgs, runDriver } from "../../tools/obsidian-cdp/bilanz.js";
 import { buildVault, requireEigenerBuild, stagingVaultDir } from "../../tools/obsidian-cdp/vault.js";
 
@@ -163,34 +163,55 @@ async function main(): Promise<void> {
   // Herkunft ungeprueft blieb, darf nicht aussehen wie einer, der belegt ist.
   let herkunftsWarnung: string | null = null;
 
-  // Ein SIGINT mitten im Lauf ueberspringt das `finally` unten NICHT im try/catch-Sinn,
-  // sondern beendet den Node-Prozess sofort — die drei `previous*`-Vorwerte (per closure,
-  // kein Snapshot: der Handler liest sie zum Zeitpunkt des Signals) blieben ohne diesen
-  // Handler bis zur naechsten manuellen Reparatur im Smoke-Zustand des Vaults stehen.
-  let signalCleanupRunning = false;
-  const onAbortSignal = (signal: NodeJS.Signals): void => {
-    if (signalCleanupRunning) return;
-    signalCleanupRunning = true;
-    void (async () => {
-      console.log(`\n\nAbbruch durch ${signal} — raeume Vault-Zustand auf...`);
-      await cdp.evaluate(`
-        const p = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}];
-        if (p) {
-          ${previousCacheFolder !== null ? `p.settings.cacheFolder = ${JSON.stringify(previousCacheFolder)};` : ""}
-          ${previousHideCacheFolder !== null ? `p.settings.hideCacheFolder = ${JSON.stringify(previousHideCacheFolder)};` : ""}
-          ${previousEmbedHeight !== "unset" ? `p.settings.embedHeight = ${JSON.stringify(previousEmbedHeight)};` : ""}
-          ${previousServer !== null ? `p.settings.serverUrl = ${JSON.stringify(previousServer.serverUrl)}; p.settings.apiToken = ${JSON.stringify(previousServer.apiToken)};` : ""}
-          await p.saveSettings();
-          if (p.applyCacheFolderVisibility) p.applyCacheFolderVisibility();
-        }
-        return true;
-      `).catch(() => { console.log("  ! Aufraeumen im Renderer fehlgeschlagen — Vault von Hand pruefen"); });
-      cdp.close();
-      process.exit(130);
-    })();
+  // Alles, was der Lauf am Vault, an den Plugin-Einstellungen und am Demo-Server aendert, raeumen drei Schritte des
+  // Abbruch-Moduls der Bruecke zurueck (`beimAbbruch`, angemeldet VOR der ersten Aenderung; je Schritt hoechstens 1 s,
+  // deshalb getrennt). Normalweg: `finally` schliesst sie rueckwaerts. Ctrl-C/SIGTERM: das Modul sperrt den Hauptzweig,
+  // faehrt sie rueckwaerts, druckt die Bilanz, Exit 130. Der fruehere lokale Handler lief neben dem `finally` her (Rennen)
+  // und raeumte nur die Einstellungen auf, nicht die Smoke-Dateien. Die `previous*`-Vorwerte liest jeder Schritt per
+  // closure zum Zeitpunkt des Aufrufs (kein Snapshot). Alle Schritte sind idempotent.
+  const einstellungenZurueck = async (): Promise<void> => {
+    // Vor dem hideCacheFolder-Teil: dessen applyCacheFolderVisibility() soll die Regel schon fuer den ECHTEN Ordner schreiben.
+    await cdp.evaluate(`
+      const p = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}];
+      if (p) {
+        ${previousCacheFolder !== null ? `p.settings.cacheFolder = ${JSON.stringify(previousCacheFolder)};` : ""}
+        ${previousEmbedHeight !== "unset" ? `p.settings.embedHeight = ${JSON.stringify(previousEmbedHeight)};` : ""}
+        ${previousServer !== null ? `p.settings.serverUrl = ${JSON.stringify(previousServer.serverUrl)}; p.settings.apiToken = ${JSON.stringify(previousServer.apiToken)};` : ""}
+        ${previousHideCacheFolder !== null ? `p.settings.hideCacheFolder = ${JSON.stringify(previousHideCacheFolder)};` : ""}
+        await p.saveSettings();
+        ${previousHideCacheFolder !== null ? "if (p.applyCacheFolderVisibility) p.applyCacheFolderVisibility();" : ""}
+      }
+      return true;
+    `);
   };
-  process.on("SIGINT", onAbortSignal);
-  process.on("SIGTERM", onAbortSignal);
+  const dateienZurueck = async (): Promise<void> => {
+    if (keep) return;
+    await cdp.evaluate(`
+      const notePath = ${JSON.stringify(SMOKE_NOTE)};
+      const stubPath = ${JSON.stringify(SMOKE_STUB)};
+      const note = app.vault.getAbstractFileByPath(notePath);
+      if (note) await app.vault.delete(note);
+      const stub = app.vault.getAbstractFileByPath(stubPath);
+      if (stub) await app.vault.delete(stub);
+      const smokeCache = app.vault.getAbstractFileByPath(${JSON.stringify(SMOKE_CACHE_FOLDER)});
+      if (smokeCache) await app.vault.delete(smokeCache, true);
+      ${cacheFolderAngelegt ? `const folder = app.vault.getAbstractFileByPath(${JSON.stringify(cacheFolderName)}); if (folder) await app.vault.delete(folder, true);` : ""}
+      return true;
+    `);
+  };
+  const anmelden = (name: string, fn: () => Promise<unknown>) =>
+    beimAbbruch(async () => {
+      try {
+        await fn();
+      } catch (e) {
+        if (istAbgebrochen()) throw e;
+        console.log(`Aufraeumen (${name}) fehlgeschlagen: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }, name);
+  // Rueckwaerts gefahren: zuerst der Demo-Server, dann die Dateien, zuletzt die Einstellungen.
+  const einstellungen = anmelden("Einstellungen zurücksetzen", einstellungenZurueck);
+  const dateien = anmelden("Smoke-Dateien entfernen", dateienZurueck);
+  const demoServer = anmelden("Demo-Server schließen", async () => { await demo?.close(); });
 
   try {
     // Ohne Sichtbarkeit drosselt Chromium den Renderer (gemessen 2026-08-06 und 2026-08-14: DOM
@@ -722,83 +743,15 @@ async function main(): Promise<void> {
         : (trash.reason ?? "unbekannt"),
     );
   } finally {
-    // Aufräumen darf nie am Ergebnis hängen: auch ein abgebrochener Lauf gibt den Vault
-    // so zurück, wie er ihn vorgefunden hat.
-    // Vor dem hideCacheFolder-Block: dessen applyCacheFolderVisibility() soll die Regel
-    // schon fuer den ECHTEN Ordner schreiben, nicht fuer den Smoke-Ordner.
-    if (previousCacheFolder !== null) {
-      await cdp
-        .evaluate(`
-          const p = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}];
-          p.settings.cacheFolder = ${JSON.stringify(previousCacheFolder)};
-          await p.saveSettings();
-          return true;
-        `)
-        .catch(() => undefined);
-    }
-    if (previousHideCacheFolder !== null) {
-      await cdp
-        .evaluate(`
-          const p = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}];
-          p.settings.hideCacheFolder = ${JSON.stringify(previousHideCacheFolder)};
-          await p.saveSettings();
-          p.applyCacheFolderVisibility();
-          return true;
-        `)
-        .catch(() => undefined);
-    }
-    if (previousEmbedHeight !== "unset") {
-      await cdp
-        .evaluate(`
-          const p = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}];
-          p.settings.embedHeight = ${JSON.stringify(previousEmbedHeight)};
-          await p.saveSettings();
-          return true;
-        `)
-        .catch(() => undefined);
-    }
-    if (previousServer !== null) {
-      await cdp
-        .evaluate(`
-          const p = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}];
-          p.settings.serverUrl = ${JSON.stringify(previousServer.serverUrl)};
-          p.settings.apiToken = ${JSON.stringify(previousServer.apiToken)};
-          await p.saveSettings();
-          return true;
-        `)
-        .catch(() => undefined);
-    }
-    await demo?.close().catch(() => undefined);
-    if (!keep) {
-      await cdp
-        .evaluate(`
-          const notePath = ${JSON.stringify(SMOKE_NOTE)};
-          const stubPath = ${JSON.stringify(SMOKE_STUB)};
-          const note = app.vault.getAbstractFileByPath(notePath);
-          if (note) await app.vault.delete(note);
-          const stub = app.vault.getAbstractFileByPath(stubPath);
-          if (stub) await app.vault.delete(stub);
-          const smokeCache = app.vault.getAbstractFileByPath(${JSON.stringify(SMOKE_CACHE_FOLDER)});
-          if (smokeCache) await app.vault.delete(smokeCache, true);
-          return true;
-        `)
-        .catch(() => undefined);
-      if (cacheFolderAngelegt) {
-        await cdp
-          .evaluate(`
-            const folder = app.vault.getAbstractFileByPath(${JSON.stringify(cacheFolderName)});
-            if (folder) await app.vault.delete(folder, true);
-            return true;
-          `)
-          .catch(() => undefined);
-      }
-    }
+    // Normalweg: die Schritte rueckwaerts schliessen (Demo-Server, Dateien, Einstellungen). Nach Ctrl-C raeumt das Modul
+    // auf, druckt die Bilanz und beendet den Prozess; dieser Zweig darf dann weder ein zweites Mal aufraeumen noch die
+    // Bilanz ein zweites Mal drucken.
+    await demoServer.schliesse();
+    await dateien.schliesse();
+    await einstellungen.schliesse();
+    if (istAbgebrochen()) return;
     cdp.close();
-    // Abmelden, sonst haengt ein SPAETES Signal (nach normalem Abschluss, cdp schon zu) den
-    // Prozess in onAbortSignal an einer toten Verbindung auf.
-    process.off("SIGINT", onAbortSignal);
-    process.off("SIGTERM", onAbortSignal);
-    // Auch nach einem Abbruch mitten im Lauf kommt die Bilanz; `runDriver` macht daraus Exit 2.
+    // Auch nach einem Fehler im Lauf kommt die Bilanz; `runDriver` macht daraus Exit 2.
     bilanz.abschluss();
   }
 

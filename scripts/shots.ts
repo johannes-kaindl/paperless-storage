@@ -34,6 +34,7 @@ import {
   closeExtraLeaves,
   openExisting,
   pollUntil,
+  requireUntil,
   requireVisible,
   setAppConfig,
 } from "../../tools/obsidian-cdp/cdp.js";
@@ -106,9 +107,8 @@ const SHOTS: Shot[] = [
     async run(cdp) {
       if (!(await notizMitEmbed(cdp))) return null;
       // Auf die Seite warten: die Toolbar steht frueher als die erste gezeichnete Seite.
-      await pollUntil<boolean>(cdp, `
-        return [...document.querySelectorAll(".internal-embed canvas, .internal-embed .page")]
-          .some((e) => e.getBoundingClientRect().width > 1);`, 15_000, 300);
+      await requireUntil(cdp, `[...document.querySelectorAll(".internal-embed canvas, .internal-embed .page")]
+          .some((e) => e.getBoundingClientRect().width > 1)`, "hero.png: die erste Seite des Embeds ist nicht gezeichnet", 15_000, 300);
       await new Promise((r) => setTimeout(r, 1500));
       await cdp.evaluate(`document.querySelectorAll(".markdown-preview-view").forEach((e) => { e.scrollTop = 0; }); return true;`);
       await new Promise((r) => setTimeout(r, 900));
