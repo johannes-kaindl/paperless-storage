@@ -26,7 +26,7 @@ Als Nächstes:
 
 - Ein Klick auf die `.paperless`-Datei im Dateibaum öffnet das Dokument in einem eigenen Tab.
 - **Paperless Storage: Synchronize document titles** ausführen, nachdem du Dokumente in paperless umbenannt hast — der Befehl benennt die Stub-Dateien passend um. Obsidian zeigt dabei je Umbenennung ggf. „Interne Links aktualisieren?"; bestätige den Dialog, der Befehl wartet darauf.
-- **Paperless Storage: Clear document cache** entfernt die heruntergeladenen PDFs (beim nächsten Anzeigen werden sie neu geladen).
+- **Paperless Storage: Clear document cache** entfernt die heruntergeladenen PDFs samt Prüfsummen-Dateien (beim nächsten Anzeigen werden sie neu geladen). Ein in paperless geändertes Dokument wird von selbst neu geholt.
 
 Heruntergeladene PDFs liegen im Cache-Ordner (Standard `_paperless-storage/` im Vault-Wurzelordner). Ein einmal geöffnetes Dokument bleibt offline lesbar. Das Plugin prüft beim Server nicht, ob es eine neuere Fassung eines gecachten Dokuments gibt — zum erneuten Laden den Cache leeren.
 

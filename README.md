@@ -70,7 +70,7 @@ cd paperless-storage && npm install && npm run build
 2. Run **Paperless Storage: Insert document** from the command palette to search your
    paperless library and insert an embed at the cursor.
 3. The embed downloads and caches the document on first view; after that it renders
-   from the local cache, also offline. To fetch a newer version, run **Clear document cache**.
+   from the local cache, also offline. When the document was replaced or reprocessed in paperless, the next display fetches the new version on its own (the plugin remembers the document's checksum next to the cached PDF); **Clear document cache** forces a fresh download.
 4. Click a `.paperless` file in the file explorer to open it full-pane, exactly like a
    native file.
 5. Run **Synchronize document titles** to rename stub files to match their current

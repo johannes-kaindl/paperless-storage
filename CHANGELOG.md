@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **A document that was replaced or reprocessed in paperless is now fetched again.** The cache never refreshed: the plugin compared the server's checksum with one stored in the `.paperless` file, and nothing ever wrote it, so a cached document stayed as it was until you ran *Clear document cache*. The plugin now keeps the checksum in a small `<id>.json` file next to the cached PDF (the `.paperless` file you sync and link stays untouched) and compares it on every display. A cached PDF from before this change has no checksum yet: it is downloaded once more the next time the server is reachable, and after that follows the server. *Clear document cache* now also removes these checksum files.
+
 ### Changed
 
 - Kit vendoring raised from `obsidian-kit` 0.37.1 to 0.57.0 and from `code-kit` 0.5.0 to 0.24.0. Nothing changes for users: the Kit's folder-hiding module now also accepts a list of folders, which this plugin does not use (it still passes the single cache folder, so the generated rule is the same). The gate and tests ran green before (70) and after (72; the two new tests cover the cache-folder rule following a changed setting).

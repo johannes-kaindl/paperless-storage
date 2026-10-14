@@ -26,7 +26,7 @@ What to try next:
 
 - Click the `.paperless` file in the file explorer to open the document in a full pane.
 - Run **Paperless Storage: Synchronize document titles** after renaming documents in paperless — it renames the stub files to match. Obsidian may show its "Update internal links?" dialog for each rename; confirm it, the command waits for you.
-- Run **Paperless Storage: Clear document cache** to remove the downloaded PDFs (they are downloaded again the next time an embed is shown).
+- Run **Paperless Storage: Clear document cache** to remove the downloaded PDFs and their checksum files (they are downloaded again the next time an embed is shown). A document that changed in paperless is fetched again by itself.
 
 Downloaded PDFs are stored in the cache folder (default `_paperless-storage/` in the vault root). A document you have opened once stays readable offline. The plugin does not check the server for a newer version of a cached document — clear the cache to fetch it again.
 

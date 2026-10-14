@@ -54,6 +54,18 @@ export function applyEmbedHeight(containerEl: HTMLElement, settings: PaperlessSe
   parent.register(() => observer.disconnect());
 }
 
+const chains = new Map<string, Promise<unknown>>();
+
+/** Fuehrt `fn` erst aus, wenn der vorherige Lauf zum selben Schluessel fertig ist (auch bei Fehler). */
+async function serialized(key: string, fn: () => Promise<void>): Promise<void> {
+  const previous = chains.get(key) ?? Promise.resolve();
+  const run = previous.then(fn, fn);
+  const tail = run.catch(() => undefined);
+  chains.set(key, tail);
+  void tail.then(() => { if (chains.get(key) === tail) chains.delete(key); });
+  await run;
+}
+
 /** Zeigt das Dokument des Stubs in `containerEl`. Wirft nie — Fehler werden gerendert. */
 export async function renderStub(
   deps: RenderDeps,
@@ -81,85 +93,109 @@ export async function renderStub(
   const cfg = { serverUrl: settings.serverUrl, apiToken: settings.apiToken };
   const path = cachePath(resolveCacheFolder(settings), stub.id, settings.fileVersion);
 
-  // Metadaten sind optional: ohne sie gilt der Cache. Offline lesbar zu bleiben ist
-  // wichtiger als aktuell zu sein.
-  let meta: DocumentMeta | null = null;
-  let authFailed = false;
-  let missing = false;
-  try {
-    meta = parseDocumentMeta(await deps.transport.text(documentMetaRequest(cfg, stub.id)));
-  } catch (e) {
-    if (e instanceof PaperlessHttpError) {
-      if (e.status === 401 || e.status === 403) authFailed = true;
-      if (e.status === 404) missing = true;
-    }
-  }
-
-  const hasCache = deps.cache.has(path);
-
-  if (authFailed && !hasCache) {
-    loading.setText(t("invalidToken"));
-    return;
-  }
-  if (missing && !hasCache) {
-    loading.setText(t("notFound", String(stub.id)));
-    return;
-  }
-
-  // Metadaten sind aus irgendeinem Grund nicht zu bekommen, aber ein Cache existiert:
-  // Ursache dem Nutzer sichtbar lassen, statt die Notiz kommentarlos aus dem Cache zu
-  // fuellen — sonst bleibt ein abgelehnter Token oder eine tote Verbindung unbemerkt.
-  let cacheNotice: string | null = meta === null && hasCache ? (authFailed ? t("invalidToken") : t("offline")) : null;
-
-  if (needsRefresh(stub, meta, hasCache)) {
-    let bytes: ArrayBuffer | null = null;
+  // Je Cache-Datei hintereinander: Embed und FileView rendern dasselbe Dokument oft gleichzeitig. Ohne
+  // Reihung sahen beide den veralteten Cache und luden beide herunter; der zweite Lauf sieht jetzt
+  // schon die frisch geschriebene Pruefsumme und zeigt aus dem Cache.
+  await serialized(path, async () => {
+    // Metadaten sind optional: ohne sie gilt der Cache. Offline lesbar zu bleiben ist
+    // wichtiger als aktuell zu sein.
+    let meta: DocumentMeta | null = null;
+    let authFailed = false;
+    let missing = false;
     try {
-      bytes = await deps.transport.binary(
-        documentFileRequest(cfg, stub.id, settings.fileVersion),
-      );
-    } catch {
-      if (!deps.cache.has(path)) {
-        loading.setText(t("noCacheOffline"));
-        return;
+      meta = parseDocumentMeta(await deps.transport.text(documentMetaRequest(cfg, stub.id)));
+    } catch (e) {
+      if (e instanceof PaperlessHttpError) {
+        if (e.status === 401 || e.status === 403) authFailed = true;
+        if (e.status === 404) missing = true;
       }
-      cacheNotice = t("offline");
     }
-    if (bytes) {
-      // Schreibfehler (volle Platte, schreibgeschuetzter Vault) sind KEIN Netzproblem —
-      // sonst meldet das Plugin „offline", waehrend der Server einwandfrei antwortet
-      // (Spec §5). Die Bytes sind da, also wird einmalig ohne Cache angezeigt.
+
+    const hasCache = deps.cache.has(path);
+    // Die Pruefsumme, mit der der Cache geladen wurde, steht im Sidecar (nicht im Stub, den der Nutzer
+    // synchronisiert). Ein aelterer Stub-Eintrag bleibt als Rueckfall gueltig.
+    const knownChecksum = hasCache ? ((await deps.cache.readChecksum(path)) ?? stub.checksum) : undefined;
+
+    if (authFailed && !hasCache) {
+      loading.setText(t("invalidToken"));
+      return;
+    }
+    if (missing && !hasCache) {
+      loading.setText(t("notFound", String(stub.id)));
+      return;
+    }
+
+    // Metadaten sind aus irgendeinem Grund nicht zu bekommen, aber ein Cache existiert:
+    // Ursache dem Nutzer sichtbar lassen, statt die Notiz kommentarlos aus dem Cache zu
+    // fuellen — sonst bleibt ein abgelehnter Token oder eine tote Verbindung unbemerkt.
+    let cacheNotice: string | null = meta === null && hasCache ? (authFailed ? t("invalidToken") : t("offline")) : null;
+
+    // Ein Cache ohne bekannte Pruefsumme (aus einer Version vor dem Sidecar) wird einmal neu geladen,
+    // sobald der Server erreichbar ist: sonst bliebe er fuer immer ungeprueft, weil nie jemand die
+    // Pruefsumme festgehalten hat. Offline (meta === null) gilt der Cache weiter.
+    const baselineMissing = hasCache && meta !== null && meta.checksum !== "" && knownChecksum === undefined;
+    if (baselineMissing || needsRefresh({ ...stub, checksum: knownChecksum }, meta, hasCache)) {
+      let bytes: ArrayBuffer | null = null;
       try {
-        await deps.cache.store(path, bytes);
-      } catch (e) {
-        loading.remove();
-        showUncachedNotice(containerEl, e);
-        return;
+        bytes = await deps.transport.binary(
+          documentFileRequest(cfg, stub.id, settings.fileVersion),
+        );
+      } catch {
+        if (!deps.cache.has(path)) {
+          loading.setText(t("noCacheOffline"));
+          return;
+        }
+        cacheNotice = t("offline");
       }
-      cacheNotice = null;
+      if (bytes) {
+        // Schreibfehler (volle Platte, schreibgeschuetzter Vault) sind KEIN Netzproblem —
+        // sonst meldet das Plugin „offline", waehrend der Server einwandfrei antwortet
+        // (Spec §5). Die Bytes sind da, nur das Ablegen scheiterte; angezeigt wird deshalb die
+        // Meldung "Downloaded, but could not be cached", nicht das PDF.
+        try {
+          await deps.cache.store(path, bytes);
+        } catch (e) {
+          loading.remove();
+          showUncachedNotice(containerEl, e);
+          return;
+        }
+        cacheNotice = null;
+        // Die Pruefsumme festhalten, mit der diese Bytes geladen wurden; ohne sie vergleicht
+        // needsRefresh nie echte Werte. Best effort: ein Schreibfehler kostet nur die naechste
+        // Pruefung, nicht die Anzeige.
+        if (meta !== null && meta.checksum !== "") {
+          try {
+            await deps.cache.writeChecksum(path, meta.checksum);
+          } catch {
+            // Sidecar nicht schreibbar: das PDF ist da, der naechste Aufruf laedt dann erneut.
+          }
+        }
+      }
     }
-  }
 
-  const cached = deps.cache.file(path);
-  if (!cached) {
-    loading.setText(t("noCacheOffline"));
-    return;
-  }
+    const cached = deps.cache.file(path);
+    if (!cached) {
+      loading.setText(t("noCacheOffline"));
+      return;
+    }
 
-  // Der Hinweis bleibt stehen (nicht loading.remove()), sonst verschwindet er im selben
-  // Zug, in dem er gesetzt wurde, und ist fuer den Nutzer nie sichtbar.
-  if (cacheNotice) {
-    loading.setText(cacheNotice);
-  } else {
-    loading.remove();
-  }
-  showPdf(deps.app, containerEl, cached, parent);
+    // Der Hinweis bleibt stehen (nicht loading.remove()), sonst verschwindet er im selben
+    // Zug, in dem er gesetzt wurde, und ist fuer den Nutzer nie sichtbar.
+    if (cacheNotice) {
+      loading.setText(cacheNotice);
+    } else {
+      loading.remove();
+    }
+    showPdf(deps.app, containerEl, cached, parent);
+  });
 }
 
 function message(containerEl: HTMLElement, text: string): HTMLElement {
   return containerEl.createDiv({ cls: "paperless-storage-message", text });
 }
 
-/** Der Download lief, nur das Ablegen im Vault schlug fehl — als solches benennen. */
+/** Der Download lief, nur das Ablegen im Vault schlug fehl — als solches benennen. Es gibt dabei
+ *  KEINE Anzeige ohne Cache: der Aufrufer zeigt nur diese Meldung, nicht das PDF. */
 function showUncachedNotice(containerEl: HTMLElement, error: unknown): void {
   message(containerEl, t("cacheWriteFailed", String(error)));
 }

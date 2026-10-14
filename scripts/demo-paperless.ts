@@ -73,10 +73,16 @@ export function makePdf(lines: string[]): Buffer {
 
 export interface DemoServer {
   url: string;
+  /** Wie oft das Dokument bisher heruntergeladen wurde (Route `download/`/`preview/`). */
+  downloads(id: number): number;
+  /** Aendert die Pruefsumme, die der Server fuer das Dokument meldet ("im Server ersetzt"). */
+  setChecksum(id: number, checksum: string): void;
   close(): Promise<void>;
 }
 
 export async function startDemoServer(port: number): Promise<DemoServer> {
+  const checksums = new Map<number, string>();
+  const downloads = new Map<number, number>();
   const server: Server = createServer((req, res) => {
     const url = new URL(req.url ?? "/", `http://127.0.0.1:${port}`);
     if (req.headers.authorization !== `Token ${DEMO_TOKEN}`) {
@@ -99,16 +105,19 @@ export async function startDemoServer(port: number): Promise<DemoServer> {
       return;
     }
     if (m[2]) {
+      downloads.set(doc.id, (downloads.get(doc.id) ?? 0) + 1);
       res.writeHead(200, { "content-type": "application/pdf" }).end(makePdf(doc.lines));
       return;
     }
-    json({ id: doc.id, title: doc.title, created: "2026-01-01", versions: [{ id: doc.id, is_root: true, checksum: `demo-${doc.id}` }] });
+    json({ id: doc.id, title: doc.title, created: "2026-01-01", versions: [{ id: doc.id, is_root: true, checksum: checksums.get(doc.id) ?? `demo-${doc.id}` }] });
   });
   await new Promise<void>((resolve) => server.listen(port, "127.0.0.1", resolve));
   // `port` 0 heisst: das Betriebssystem waehlt — die Adresse nennt den tatsaechlichen Port.
   const actual = (server.address() as AddressInfo).port;
   return {
     url: `http://127.0.0.1:${actual}`,
+    downloads: (id) => downloads.get(id) ?? 0,
+    setChecksum: (id, checksum) => { checksums.set(id, checksum); },
     close: () => new Promise((resolve) => server.close(() => resolve())),
   };
 }

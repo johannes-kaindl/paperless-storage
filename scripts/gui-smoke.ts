@@ -81,6 +81,7 @@ const PUNKTE = [
   "4. Embed-Höhe bleibt bei 500px, auch nach dem zweiten Viewer-Überschreiben",
   "5. FileView öffnet die .paperless-Datei im ganzen Pane",
   "6. Settings-Tab zeichnet alle definierten Zeilen",
+  "9. Geänderte Prüfsumme lädt das Dokument neu, eine unveränderte nicht (Sidecar)",
   "7. API-Token-Zeile ist maskiert (Render-Hatch greift in beiden Pfaden)",
   "7b. Die Hilfe-Zeile steht als erste Zeile im Tab, mit Text-Knopf und Icon-Knopf",
   "8a. Kein liegen gebliebener Smoke-Cache-Ordner aus einem abgebrochenen Vorlauf",
@@ -547,6 +548,39 @@ async function main(): Promise<void> {
       fileViewLoaded === true,
       fileViewLoaded ? "" : fileViewDiag,
     );
+
+    // --- 9. Pruefsumme im Sidecar: geaenderte laedt neu, unveraenderte nicht ----
+    // Der Cache aktualisierte nie, weil kein Codepfad die Pruefsumme festhielt. Gemessen wird am
+    // Demo-Server: wie oft wurde das PDF abgeholt? Gegen eine echte Instanz laesst sich die
+    // Pruefsumme nicht aendern, dort ist der Punkt "nichts gemessen".
+    if (demo === null) {
+      bilanz.unmeasured("9. Geänderte Prüfsumme lädt das Dokument neu, eine unveränderte nicht (Sidecar)", "Gegenstelle ist keine Demo: die Prüfsumme lässt sich nicht ändern (--demo nutzen).");
+    } else {
+      const open = async (): Promise<boolean | null> => {
+        await cdp.evaluate(`
+          const neutral = app.vault.getMarkdownFiles()[0];
+          if (neutral) await app.workspace.getLeaf(false).openFile(neutral);
+          const stub = app.vault.getAbstractFileByPath(${JSON.stringify(SMOKE_STUB)});
+          await app.workspace.getLeaf(false).openFile(stub);
+          return true;
+        `);
+        return pollUntil<boolean>(cdp, `return !!document.querySelector(".view-content")?.querySelector(".pdf-toolbar");`, 15000);
+      };
+      await open();
+      const vorher = demo.downloads(docId);
+      await open();
+      const unveraendert = demo.downloads(docId);
+      demo.setChecksum(docId, "demo-ersetzt");
+      await open();
+      const geaendert = demo.downloads(docId);
+      await open();
+      const danach = demo.downloads(docId);
+      record(
+        "9. Geänderte Prüfsumme lädt das Dokument neu, eine unveränderte nicht (Sidecar)",
+        unveraendert === vorher && geaendert === vorher + 1 && danach === geaendert,
+        `Abrufe: vorher ${vorher} · erneut geöffnet ${unveraendert} · Prüfsumme geändert ${geaendert} · danach ${danach}`,
+      );
+    }
 
     // --- 6./7. Settings-Tab zeichnet seine Zeilen wirklich -------------------
     // Regressions-Gegenstand von d182c67 (0.1.2): der Tab definiert seine Zeilen

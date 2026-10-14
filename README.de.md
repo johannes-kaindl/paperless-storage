@@ -70,7 +70,7 @@ cd paperless-storage && npm install && npm run build
 1. **Einstellungen → Paperless Storage** öffnen und Server URL sowie API token
    eintragen.
 2. **Paperless Storage: Insert document** aus der Befehlspalette ausführen, in der paperless-Bibliothek suchen und die Einbettung an der Cursorposition einsetzen. (Die Befehlsnamen sind englisch.)
-3. Die Einbettung lädt das Dokument beim ersten Anzeigen herunter und legt es im Cache ab; danach rendert sie aus dem Cache, auch offline. Für eine neuere Fassung **Clear document cache** ausführen.
+3. Die Einbettung lädt das Dokument beim ersten Anzeigen herunter und legt es im Cache ab; danach rendert sie aus dem Cache, auch offline. Wurde das Dokument in paperless ersetzt oder neu verarbeitet, holt die nächste Anzeige die neue Fassung von selbst (das Plugin merkt sich die Prüfsumme des Dokuments neben dem gecachten PDF); **Clear document cache** erzwingt einen frischen Download.
 4. Ein Klick auf eine `.paperless`-Datei im Dateibaum öffnet sie in einem eigenen Tab, genau wie eine native Datei.
 5. **Synchronize document titles** benennt Stub-Dateien nach ihrem aktuellen Titel auf dem Server um.
 6. **Clear document cache** entfernt die heruntergeladenen PDFs.
