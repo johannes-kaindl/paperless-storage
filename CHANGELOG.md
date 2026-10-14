@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-10-14
+
 ### Added
 
 - **New button *Test connection* in the settings** checks the server URL and the API token with one search request and says what is wrong (a rejected token gets its own message).
