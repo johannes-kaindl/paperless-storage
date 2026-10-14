@@ -1,4 +1,4 @@
-// vendored from obsidian-kit@0.57.0, src/obsidian/folder-hide.ts — do not hand-edit; re-vendor via tools/sync-kit.sh
+// vendored from obsidian-kit@0.60.1, src/obsidian/folder-hide.ts — do not hand-edit; re-vendor via tools/sync-kit.sh
 /** Hängt das Ausblende-Stylesheet aus `pure/folder-hide` an ein Dokument — per Constructable
  *  Stylesheet, weil ein `<style>`-Element die Store-Lint-Regel `no-forbidden-elements` verletzt.
  *

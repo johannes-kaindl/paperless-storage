@@ -16,7 +16,7 @@ All notable changes to this project are documented here. The format follows
 - **Synchronize document titles now asks first.** It shows which titles change (old → new), and saves the previous names and contents to a backup file in the plugin folder (`title-sync-backup-<time>.json`) before renaming anything; if the backup cannot be written, nothing is renamed. There is no automatic restore yet: the backup is for restoring by hand.
 - **Clear document cache now asks for confirmation.**
 - **Command names, the settings page and the notices are now translated** (German added); before, only some messages were.
-- Kit vendoring raised from `obsidian-kit` 0.37.1 to 0.57.0 and from `code-kit` 0.5.0 to 0.24.0. Nothing changes for users: the Kit's folder-hiding module now also accepts a list of folders, which this plugin does not use (it still passes the single cache folder, so the generated rule is the same). The gate and tests ran green before (70) and after (72; the two new tests cover the cache-folder rule following a changed setting).
+- Kit vendoring raised from `obsidian-kit` 0.37.1 to 0.60.1 and from `code-kit` 0.5.0 to 0.27.1. Nothing changes for users: the Kit's folder-hiding module now also accepts a list of folders, which this plugin does not use (it still passes the single cache folder, so the generated rule is the same). The gate and tests ran green before (70) and after (72; the two new tests cover the cache-folder rule following a changed setting).
 
 ### Fixed
 

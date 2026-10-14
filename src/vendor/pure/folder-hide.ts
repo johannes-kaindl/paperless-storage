@@ -1,4 +1,4 @@
-// vendored from obsidian-kit@0.57.0, src/pure/folder-hide.ts — do not hand-edit; re-vendor via tools/sync-kit.sh
+// vendored from obsidian-kit@0.60.1, src/pure/folder-hide.ts — do not hand-edit; re-vendor via tools/sync-kit.sh
 /** CSS, das einen Ordner im Datei-Explorer von Obsidian ausblendet — der pure Kern.
  *
  *  Herkunft (Welle 8, 2026-09-25): `vault-rag/src/index_dir.ts` (`normalizeIndexDir`,
