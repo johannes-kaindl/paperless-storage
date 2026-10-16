@@ -53,7 +53,7 @@ Die Bilanz hat vier Zustände (grün, rot, übersprungen, nichts gemessen); die 
 
 1. Cache-Ordner ausgeblendet bei `hideCacheFolder=true` (Kit `folder-hide`, Constructable
    Stylesheet — `.nav-folder-title[data-path=…]` auf `display:none`; bis 0.3.0 eine eigene
-   `hide-folder.ts`).
+   Datei im Plugin, seit dem Wechsel auf das Kit-Modul gelöscht).
 2. Cache-Ordner wieder sichtbar bei `hideCacheFolder=false`.
 2b. Die Kinder des aufgeklappten Ordners (`.nav-folder-children`) sind mit ausgeblendet.
 2c. Das Stylesheet hängt am Hauptfenster-Dokument (`rootSplit.doc`), auch bei offenem Pop-out.
@@ -87,7 +87,7 @@ vor dem Zielfile immer erst zu einem neutralen File navigieren.
 
 **Nach beiden Treiber-Fixes:** 5/5 grün.
 
-**Gegenprobe:** Fix aus `hide-folder.ts` (Commit `7e9071d`, Constructable-Stylesheet-
+**Gegenprobe:** Fix aus der damaligen eigenen Datei (Commit `7e9071d`, später durch das Kit-Modul `folder-hide` ersetzt, Constructable-Stylesheet-
 Umstellung) temporär durch ein frühes `return` ausgebaut, deployt, Plugin per
 `disablePlugin`/`enablePlugin` neu geladen (kein Obsidian-Neustart nötig) → **4/5**,
 genau Check 1 rot (`display: flex` statt `none`) — exakt der erwartete Befund am

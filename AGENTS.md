@@ -12,7 +12,7 @@ API-Token statt über öffentliche Share-Links.
 |---|---|
 | Design, Pläne und Spikes | Specs und Pläne liegen im Vault-Cockpit unter `_SDD/` (CORE-META-14): `2026-08-05-paperless-storage-design.md`, `2026-08-05-paperless-storage-phase-1.md` |
 | Dach-Konventionen (**verbindlich**) | `../AGENTS.md`, `../UI-STANDARD.md`, `../REGISTRY.md` |
-| Globale Standards | `../../_docs/CONVENTIONS.md` (PROF-OBS-Regeln) — maintainer-lokal, nicht Teil dieses Repos |
+| Globale Standards | `../../workspace/_docs/CONVENTIONS.md` (PROF-OBS-Regeln) — maintainer-lokal, nicht Teil dieses Repos |
 
 **Kit-first-Regel:** Vor dem Lösen eines Problems `../REGISTRY.md` und
 `../obsidian-kit/README.md` prüfen — ist es in einem Nachbar-Plugin schon gelöst, wird
