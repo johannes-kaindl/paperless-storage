@@ -7,8 +7,8 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Changed
-- The README shows current screenshots: the settings with the keychain note and the "Test connection" row, and a document embedded from paperless.
 
+- The README shows current screenshots: the settings with the keychain note and the "Test connection" row, and a document embedded from paperless.
 - Internal change, nothing changes for you: the keychain access for the API token now comes from the shared kit library instead of a local copy of it.
 - Internal housekeeping only, nothing changes for you: the shared kit libraries were updated (obsidian-kit 0.61.0, code-kit 0.28.0). The changes in between (a language-model change for Gemma 4, a new Claude provider, endpoint-manager notifications, a Kit test mock) touch no part this plugin uses in a visible way.
 
