@@ -16,7 +16,7 @@ import { PaperlessSettingTab } from "./settings-tab";
 import { installFolderHide, type FolderHideHandle } from "../vendor/kit-obsidian/folder-hide";
 import { confirmAction } from "../vendor/kit-obsidian/confirm";
 import { loadSecretValue, persistSecretValue } from "../vendor/kit/secret-value";
-import { obsidianSecretStoreOrNull } from "./secret-store";
+import { obsidianSecretStoreOrNull } from "../vendor/kit-obsidian/secret-store-loose";
 import { searchRequest } from "../core/paperless-api";
 import { PaperlessHttpError, describeHttpError } from "../core/errors";
 import { runTitleSync } from "./title-sync-runner";
