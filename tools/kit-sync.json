@@ -1,10 +1,10 @@
 {
   "sources": {
     "obsidian-kit": {
-      "ref": "0.60.1"
+      "ref": "0.61.0"
     },
     "code-kit": {
-      "ref": "0.27.1"
+      "ref": "0.28.0"
     }
   },
   "targets": [
@@ -37,9 +37,16 @@
       "modules": [
         "help-setting",
         "folder-hide",
-        "confirm"
+        "confirm",
+        "secret-store-loose"
       ],
-      "vendorJson": "src/vendor/kit"
+      "vendorJson": "src/vendor/kit",
+      "rewrite": [
+        [
+          "../vendor/code-kit/pure/",
+          "../kit/"
+        ]
+      ]
     },
     {
       "dir": "src/vendor/pure",
