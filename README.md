@@ -93,7 +93,7 @@ for that dialog.
 
 ### Configuration
 
-<img src="https://raw.githubusercontent.com/johannes-kaindl/paperless-storage/main/docs/images/settings.png" width="820" alt="The Paperless Storage settings tab: server URL, masked API token, cache folder, hide cache folder toggle, file version and default embed height">
+<img src="https://raw.githubusercontent.com/johannes-kaindl/paperless-storage/main/docs/images/settings.png" width="820" alt="The Paperless Storage settings tab: server URL, masked API token, cache folder, hide cache folder toggle, file version, default embed height and a Test connection button">
 
 | Setting | Effect | Default |
 |---|---|---|

@@ -91,7 +91,7 @@ eingefroren, lohnt der Blick auf diesen Dialog.
 
 ### Konfiguration
 
-<img src="https://raw.githubusercontent.com/johannes-kaindl/paperless-storage/main/docs/images/settings.png" width="820" alt="Der Einstellungen-Tab von Paperless Storage: Server-URL, maskierter API-Token, Cache-Ordner, Schalter zum Ausblenden, Dateiversion und Standardhöhe">
+<img src="https://raw.githubusercontent.com/johannes-kaindl/paperless-storage/main/docs/images/settings.png" width="820" alt="Der Einstellungen-Tab von Paperless Storage: Server-URL, maskierter API-Token, Cache-Ordner, Schalter zum Ausblenden, Dateiversion, Standardhöhe und ein Knopf „Test connection“">
 
 | Einstellung (Bezeichnung in Obsidian, englisch) | Wirkung | Standard |
 |---|---|---|
