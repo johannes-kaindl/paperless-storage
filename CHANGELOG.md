@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.4.1] — 2026-10-16
+
 ### Changed
 
 - The README shows current screenshots: the settings with the keychain note and the "Test connection" row, and a document embedded from paperless.
