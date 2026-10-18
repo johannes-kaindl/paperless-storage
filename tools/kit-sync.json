@@ -1,10 +1,10 @@
 {
   "sources": {
     "obsidian-kit": {
-      "ref": "0.61.0"
+      "ref": "0.63.0"
     },
     "code-kit": {
-      "ref": "0.28.0"
+      "ref": "0.31.0"
     }
   },
   "targets": [
@@ -17,7 +17,9 @@
         "error_body",
         "settings",
         "secrets",
-        "secret-value"
+        "secret-value",
+        "folder-scope",
+        "rel-path"
       ]
     },
     {
