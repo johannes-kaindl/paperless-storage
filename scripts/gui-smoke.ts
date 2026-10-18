@@ -52,7 +52,7 @@ import { DEMO_TOKEN, startDemoServer, type DemoServer } from "./demo-paperless.j
 // importiert, nicht vendored: sie ist plugin-neutral und lief zuvor byte-identisch in
 // sechs Repos. Fehlt das Dach (fremder Checkout), bricht esbuild beim Auflösen ab — das
 // ist die gewollte Meldung. Was ihr fehlt, wird DORT ergänzt, nicht hier nachgebaut.
-import { Cdp, attachTo, beimAbbruch, bereiteInstanzVor, istAbgebrochen, pollUntil, requireVisible } from "../../tools/obsidian-cdp/cdp.js";
+import { Cdp, attachTo, beimAbbruch, bereiteInstanzVor, istAbgebrochen, pollUntil, requireVisible, schliesseEinstellungen } from "../../tools/obsidian-cdp/cdp.js";
 import { createBilanz, parseArgs, runDriver } from "../../tools/obsidian-cdp/bilanz.js";
 import { buildVault, requireEigenerBuild, stagingVaultDir } from "../../tools/obsidian-cdp/vault.js";
 
@@ -728,14 +728,12 @@ async function main(): Promise<void> {
       deleted?: string[];
       stillThere?: boolean;
     }
+    // Die Einstellungen aus Punkt 6/7 koennen als eigenes Fenster offen stehen; ein Dialog oeffnet sich dann dort, nicht im
+    // Hauptfenster, das dieser Treiber liest. `schliesseEinstellungen` schliesst und macht das Hauptfenster wieder zum aktiven Dokument
+    // (Dach `tools/obsidian-cdp`, ersetzt die lokale Abhilfe mit `app.setting.close()` + focus-Ereignis + 300 ms).
+    const einstellungenZu = await schliesseEinstellungen(cdp);
+    if (!einstellungenZu.hauptAktiv) console.log("WARNUNG: Hauptfenster nicht aktiv nach dem Schliessen der Einstellungen");
     const trash = await cdp.evaluate<TrashProbe>(`
-      // Die Einstellungen aus Punkt 6/7 koennen als eigenes Fenster offen stehen; ein Dialog oeffnet sich
-      // dann dort, nicht im Hauptfenster, das dieser Treiber liest.
-      app.setting?.close?.();
-      // Nach dem Schliessen bleibt activeDocument auf dem Einstellungsfenster stehen, bis das Hauptfenster
-      // ein focus-Ereignis sieht (gemessen: ohne es oeffnet der Dialog im unsichtbaren Fenster).
-      window.dispatchEvent(new Event("focus"));
-      await new Promise((r) => setTimeout(r, 300));
       const p = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}];
       p.settings.cacheFolder = ${JSON.stringify(SMOKE_CACHE_FOLDER)};
       await p.saveSettings();
