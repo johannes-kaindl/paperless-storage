@@ -2,6 +2,7 @@
 // darin liegende Dateien sind keine TFile und fuer den nativen PDF-Viewer unsichtbar.
 
 import { normalizePath, TFile, type Vault } from "obsidian";
+import { isInFolder } from "../vendor/kit/folder-scope";
 
 export class CacheStore {
   constructor(
@@ -63,10 +64,14 @@ export class CacheStore {
 
   /** Loescht alle gecachten Dateien samt Pruefsummen-Sidecars. Gibt die Anzahl der PDFs zurueck. */
   async clear(): Promise<number> {
-    const dir = normalizePath(this.folder());
+    // Der Ordner aus der Einstellung wird VOR dem Aufruf getrimmt (Kit folder-scope: kein Trimmen von Leerraum). Ein leerer Name
+    // ist nicht „der ganze Vault“ — `clear()` raeumte sonst jede PDF und jede JSON-Datei weg. `isInFolder` (Standard: ganze
+    // Segmente, alle Tiefen, der Ordner selbst nicht, leerer Ordner enthaelt nichts) vergleicht in Normalform C und kennt `./`, `/` am
+    // Anfang und Ende; der Vergleich per `startsWith(dir + "/")` kannte nichts davon.
+    const dir = this.folder().trim();
     const victims = this.vault
       .getFiles()
-      .filter((f) => f.path.startsWith(dir + "/") && (f.extension === "pdf" || f.extension === "json"));
+      .filter((f) => isInFolder(f.path, dir) && (f.extension === "pdf" || f.extension === "json"));
     for (const f of victims) await this.trash(f);
     return victims.filter((f) => f.extension === "pdf").length;
   }

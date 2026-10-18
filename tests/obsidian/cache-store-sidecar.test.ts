@@ -5,7 +5,7 @@ import { CacheStore } from "../../src/obsidian/cache-store";
 type FileCtor = new (path: string) => TFile;
 const MockFile = TFile as unknown as FileCtor;
 
-function vaultDouble(initial: Record<string, string> = {}) {
+function vaultDouble(initial: Record<string, string> = {}, folder = "cache") {
   const texts = new Map(Object.entries(initial));
   const files = new Map<string, TFile>();
   const mk = (p: string) => {
@@ -24,7 +24,7 @@ function vaultDouble(initial: Record<string, string> = {}) {
     createFolder: () => Promise.resolve(),
   };
   const trash = vi.fn((f: TFile) => { files.delete(f.path); texts.delete(f.path); return Promise.resolve(); });
-  return { store: new CacheStore(vault as never, () => "cache", trash), texts, trash, mk };
+  return { store: new CacheStore(vault as never, () => folder, trash), texts, trash, mk };
 }
 
 describe("CacheStore — Pruefsummen-Sidecar", () => {
@@ -60,5 +60,37 @@ describe("CacheStore — Pruefsummen-Sidecar", () => {
     expect(await store.clear()).toBe(1);
     const gone = trash.mock.calls.map((c) => c[0].path).sort();
     expect(gone).toEqual(["cache/7.json", "cache/7.pdf"]);
+  });
+
+  it("clear() trifft nur den Cache-Ordner, nicht einen Ordner mit gleichem Namensanfang (Kit folder-scope)", async () => {
+    const { store, trash, mk } = vaultDouble({ "cache-archiv/1.json": "{}", "cache/7.json": "{}" });
+    mk("cache-archiv/1.pdf"); mk("cache/7.pdf");
+    expect(await store.clear()).toBe(1);
+    expect(trash.mock.calls.map((c) => c[0].path).sort()).toEqual(["cache/7.json", "cache/7.pdf"]);
+  });
+
+  it("clear() kommt mit Schraegstrich oder Leerraum in der Einstellung zurecht", async () => {
+    for (const setting of ["cache/", " cache ", "./cache", "/cache"]) {
+      const { store, trash, mk } = vaultDouble({}, setting);
+      mk("cache/7.pdf");
+      expect(await store.clear(), setting).toBe(1);
+      expect(trash).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it("clear() mit leerer Einstellung raeumt NICHTS (ein leerer Ordnername ist nicht „der ganze Vault“)", async () => {
+    for (const setting of ["", "  ", "/", "."]) {
+      const { store, trash, mk } = vaultDouble({}, setting);
+      mk("notes/a.pdf"); mk("cache/7.pdf");
+      expect(await store.clear(), JSON.stringify(setting)).toBe(0);
+      expect(trash).not.toHaveBeenCalled();
+    }
+  });
+
+  it("clear() vergleicht Umlaute in Normalform C: zerlegte Eingabe trifft den zusammengesetzten Ordner", async () => {
+    const { store, trash, mk } = vaultDouble({}, "Ca\u0308che");
+    mk("C\u00e4che/7.pdf");
+    expect(await store.clear()).toBe(1);
+    expect(trash).toHaveBeenCalledTimes(1);
   });
 });
