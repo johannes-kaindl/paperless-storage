@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-11-11
+
 ### Changed
 
 - **New and renamed stub files follow the shared file-name rules.** A colon followed by a space becomes " — ", `*` becomes `_`, `"` becomes `'`, `? < >` are dropped, `\ / | :` become `-`, and `# ^ [ ]` no longer stay in the name (they broke the embed link `![[…]]` that the insert command writes). If the "Filename Sanitizer" plugin is installed, its settings decide instead. Names are still capped at 100 characters. Existing stub files are not renamed; only a new stub, or a rename after a title change, gets the new name.
