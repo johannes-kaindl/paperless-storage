@@ -3,7 +3,6 @@ import {
   parseStub,
   serializeStub,
   StubParseError,
-  sanitizeStubFilename,
   uniqueStubPath,
 } from "../../src/core/stub";
 
@@ -45,24 +44,6 @@ describe("serializeStub", () => {
   });
   it("laesst undefinierte Felder weg", () => {
     expect(serializeStub({ id: 1, title: "x" })).not.toContain("checksum");
-  });
-});
-
-describe("sanitizeStubFilename", () => {
-  it("ersetzt in Obsidian verbotene Zeichen", () => {
-    expect(sanitizeStubFilename("Rechnung/Telekom: März*2026")).toBe(
-      "Rechnung-Telekom- März-2026"
-    );
-  });
-  it("laesst normale Titel unveraendert", () => {
-    expect(sanitizeStubFilename("Mietvertrag 2024")).toBe("Mietvertrag 2024");
-  });
-  it("faellt bei leerem Titel auf Untitled zurueck", () => {
-    expect(sanitizeStubFilename("")).toBe("Untitled");
-    expect(sanitizeStubFilename("   ")).toBe("Untitled");
-  });
-  it("kappt sehr lange Titel auf 100 Zeichen", () => {
-    expect(sanitizeStubFilename("x".repeat(150)).length).toBe(100);
   });
 });
 

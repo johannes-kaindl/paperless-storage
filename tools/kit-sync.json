@@ -19,7 +19,11 @@
         "secrets",
         "secret-value",
         "folder-scope",
-        "rel-path"
+        "rel-path",
+        {
+          "name": "filename-policy",
+          "ref": "0.63.0"
+        }
       ]
     },
     {
@@ -40,7 +44,15 @@
         "help-setting",
         "folder-hide",
         "confirm",
-        "secret-store-loose"
+        "secret-store-loose",
+        {
+          "name": "safe-file-name",
+          "ref": "0.82.2"
+        },
+        {
+          "name": "plugin-api",
+          "ref": "0.82.2"
+        }
       ],
       "vendorJson": "src/vendor/kit",
       "rewrite": [
@@ -55,9 +67,19 @@
       "source": "obsidian-kit",
       "from": "src/pure",
       "modules": [
-        "folder-hide"
+        "folder-hide",
+        {
+          "name": "filename-sanitizer-source",
+          "ref": "0.82.2"
+        }
       ],
-      "vendorJson": "src/vendor/kit"
+      "vendorJson": "src/vendor/kit",
+      "rewrite": [
+        [
+          "../vendor/code-kit/pure/",
+          "../kit/"
+        ]
+      ]
     },
     {
       "dir": "tests/vendor/kit",

@@ -4,7 +4,8 @@
 // darueber alle Links im Vault selbst nach (Spec §3.6).
 
 import { Notice, TFile, type App } from "obsidian";
-import { parseStub, serializeStub, sanitizeStubFilename, uniqueStubPath, StubParseError } from "../core/stub";
+import { parseStub, serializeStub, uniqueStubPath, StubParseError } from "../core/stub";
+import { stubBaseName } from "./stub-name";
 import { documentMetaRequest, parseDocumentMeta, type DocumentMeta } from "../core/paperless-api";
 import { planTitleSync, type StubRecord } from "../core/title-sync";
 import { isConfigured, type PaperlessSettings } from "../core/settings";
@@ -99,7 +100,7 @@ export async function runTitleSync(deps: TitleSyncDeps): Promise<void> {
     if (!(file instanceof TFile) || !oldStub) continue;
 
     const dir = plan.path.includes("/") ? plan.path.slice(0, plan.path.lastIndexOf("/")) : "";
-    const base = sanitizeStubFilename(plan.newTitle);
+    const base = stubBaseName(deps.app, plan.newTitle);
     const existingPaths = new Set(
       deps.app.vault.getFiles().map((f) => f.path).filter((p) => p !== plan.path),
     );

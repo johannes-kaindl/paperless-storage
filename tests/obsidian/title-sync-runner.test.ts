@@ -59,6 +59,13 @@ describe("runTitleSync — Vorschau, Rueckfrage, Schnappschuss", () => {
     expect(t.order.slice(1)).toEqual(["rename:Doc A.paperless", "rename:Doc B.paperless"]);
   });
 
+  it("der neue Dateiname folgt den Dateinamen-Regeln (kein # ^ [ ] : im Namen, damit der Einbettungs-Link auflöst)", async () => {
+    const t = setup({ 1: "Rechnung #7: März [Entwurf]" });
+    await runTitleSync(t.deps);
+    expect(t.renameFile).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(t.renameFile).mock.calls[0]?.[1]).toBe("Rechnung 7 — März (Entwurf).paperless");
+  });
+
   it("die Sicherung enthaelt Pfad und alten Inhalt", async () => {
     const t = setup({ 1: "Neu A" });
     await runTitleSync(t.deps);

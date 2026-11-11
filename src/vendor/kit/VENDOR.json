@@ -2,9 +2,9 @@
   "source": "code-kit",
   "version": "0.31.0",
   "sha": "7e3bdb3",
-  "vendored": "i18n.ts, error_body.ts, settings.ts, secrets.ts, secret-value.ts, folder-scope.ts, rel-path.ts",
+  "vendored": "i18n.ts, error_body.ts, settings.ts, secrets.ts, secret-value.ts, folder-scope.ts, rel-path.ts, filename-policy.ts (code-kit@0.63.0, ce90bf0)",
   "note": "Verbatim snapshot aus ZWEI Quellen. Never hand-edit. Pins in tools/kit-sync.json, re-vendor via tools/sync-kit.sh (zentrales kit-sync im Dach). Seit obsidian-kit 2ab1bb5 liegt die domaenenfreie pure-Teilmenge in code-kit; welche Datei woher stammt, sagt ihr eigener Kopf. endpoint_config bewusst NICHT vendored: sein authHeaders() erzeugt 'Bearer', paperless braucht 'Token'.",
   "obsidian_kit_version": "0.63.0",
   "obsidian_kit_sha": "9209efa",
-  "obsidian_kit_vendored": "folder-suggest.ts, settings_walker.ts, help-setting.ts, folder-hide.ts, confirm.ts, secret-store-loose.ts, folder-hide.ts, obsidian-mock.ts"
+  "obsidian_kit_vendored": "folder-suggest.ts, settings_walker.ts, help-setting.ts, folder-hide.ts, confirm.ts, secret-store-loose.ts, safe-file-name.ts (obsidian-kit@0.82.2, 920cf2f), plugin-api.ts (obsidian-kit@0.82.2, 920cf2f), folder-hide.ts, filename-sanitizer-source.ts (obsidian-kit@0.82.2, 920cf2f), obsidian-mock.ts"
 }

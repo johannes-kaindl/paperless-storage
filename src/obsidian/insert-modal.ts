@@ -4,7 +4,8 @@
 // ![[…]] an der Cursorposition ein.
 
 import { Notice, SuggestModal, TFile, type App, type Editor } from "obsidian";
-import { parseStub, serializeStub, sanitizeStubFilename, uniqueStubPath, StubParseError } from "../core/stub";
+import { parseStub, serializeStub, uniqueStubPath, StubParseError } from "../core/stub";
+import { stubBaseName } from "./stub-name";
 import { searchRequest, parseSearchResults, type DocumentSearchResult } from "../core/paperless-api";
 import type { PaperlessSettings } from "../core/settings";
 import { PaperlessHttpError } from "../core/errors";
@@ -89,7 +90,7 @@ export class InsertDocumentModal extends SuggestModal<DocumentSearchResult> {
     const existing = await this.findExistingStub(item.id);
     if (existing) return existing;
 
-    const base = sanitizeStubFilename(item.title === "" ? t("documentFallback", item.id) : item.title);
+    const base = stubBaseName(this.deps.app, item.title === "" ? t("documentFallback", item.id) : item.title);
     const dir = this.deps.sourcePath.includes("/")
       ? this.deps.sourcePath.slice(0, this.deps.sourcePath.lastIndexOf("/"))
       : "";

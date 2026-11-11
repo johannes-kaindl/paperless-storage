@@ -45,15 +45,6 @@ export function serializeStub(stub: DocumentStub): string {
   return JSON.stringify(out, null, 2) + "\n";
 }
 
-/** Ersetzt Zeichen, die Obsidian in Dateinamen nicht erlaubt (`\ / : * ? " < > |`),
- *  durch "-" und kappt auf eine handhabbare Laenge. Ein leerer/reiner Whitespace-Titel
- *  wuerde sonst eine unbenutzbare Datei ("".paperless) erzeugen. */
-export function sanitizeStubFilename(title: string): string {
-  const cleaned = title.replace(/[\\/:*?"<>|]/g, "-").trim();
-  const base = cleaned === "" ? "Untitled" : cleaned;
-  return base.slice(0, 100);
-}
-
 /** Findet einen im Vault freien `<base>.paperless`-Pfad, mit " 2", " 3", … bei
  *  Kollision — Vault-Pfade muessen eindeutig sein, `vault.create()` wirft sonst.
  *  Rein: die Kollisionslogik ist ohne Vault-Mock testbar, der Aufrufer liefert die
